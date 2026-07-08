@@ -1,0 +1,11 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["vite/client"],
+    "noEmit": true,
+    // Faithful port of the vanilla generator's dynamic canvas/DOM code; relax this
+    // one strict flag (matches @10s/schema) so the port stays readable.
+    "noUncheckedIndexedAccess": false
+  },
+  "include": ["src"]
+}

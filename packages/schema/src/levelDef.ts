@@ -178,3 +178,22 @@ export const MAX_RIGS = 3;
 
 /** Canonical per-rig colors, assigned by rig index (PLAN §5d). */
 export const RIG_COLORS: readonly string[] = ['#46E5F2', '#FFB23E', '#ED4DB7'];
+
+/**
+ * Named background palettes, mirrored from the game's `LevelDef.ts` THEME const. All
+ * stay in the dark indigo / violet cave family (art direction — no off-brand hues).
+ * These are level-format data (color triples), not bundled art.
+ */
+export const THEMES: Record<string, ThemeDef> = {
+  indigo: { void: '#050817', upper: '#0D1028', lower: '#17132F' },
+  violet: { void: '#08071A', upper: '#160F30', lower: '#221638' },
+  azure: { void: '#050A18', upper: '#0C1630', lower: '#14223C' },
+  plum: { void: '#0A0718', upper: '#1A0F2C', lower: '#261736' },
+  blue: { void: '#060A1A', upper: '#0D1434', lower: '#161E40' },
+  deepviolet: { void: '#090720', upper: '#140E34', lower: '#1E1640' },
+  steel: { void: '#070A16', upper: '#10182E', lower: '#1A2440' },
+  royal: { void: '#0A0820', upper: '#18103A', lower: '#241846' },
+};
+
+/** Default door glow ([color, radius]), mirrored from the game. */
+export const DOOR_GLOW: [string, number] = ['#C265FF', 22];

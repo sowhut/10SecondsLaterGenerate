@@ -46,7 +46,7 @@ export const STACK_SUPPORT_KINDS: ReadonlySet<string> = new Set([
 export const STACK_BLOCKER_KINDS: ReadonlySet<string> = new Set(['box', 'stone']);
 
 /** Default footprint per object kind (cells), used when the def omits w/h. */
-const KIND_SIZE: Record<string, { w: number; h: number }> = {
+export const KIND_SIZE: Record<string, { w: number; h: number }> = {
   spawn: { w: 2, h: 3 },
   key: { w: 1, h: 2 },
   door: { w: 2, h: 3 },
@@ -135,11 +135,12 @@ function ledgesOnRow(def: LevelDef, row: number) {
   return (def.ledges ?? []).filter((ledge) => ledge.row === row);
 }
 
-function overlaps(a0: number, a1: number, b0: number, b1: number): boolean {
+/** Two half-open ranges [a0,a1) and [b0,b1) overlap. */
+export function overlaps(a0: number, a1: number, b0: number, b1: number): boolean {
   return a0 < b1 && b0 < a1;
 }
 
-function mergeIntervals(intervals: Interval[]): Interval[] {
+export function mergeIntervals(intervals: Interval[]): Interval[] {
   const sorted = intervals.filter(([a, b]) => b > a).sort((a, b) => a[0] - b[0]);
   const out: Interval[] = [];
   for (const [a, b] of sorted) {
@@ -150,11 +151,11 @@ function mergeIntervals(intervals: Interval[]): Interval[] {
   return out;
 }
 
-function pitSpan(pit: PitDef): Interval {
+export function pitSpan(pit: PitDef): Interval {
   return [pit.col0, pit.col0 + (pit.cells ?? pit.col1 - pit.col0 + 1)];
 }
 
-function carveIntervals(base: Interval, removals: Interval[]): Interval[] {
+export function carveIntervals(base: Interval, removals: Interval[]): Interval[] {
   let parts: Interval[] = [base];
   for (const [ra, rb] of removals.slice().sort((a, b) => a[0] - b[0])) {
     const next: Interval[] = [];
@@ -193,7 +194,7 @@ export function surfaceIntervals(def: LevelDef, tier: number): Interval[] {
   return mergeIntervals(intervals);
 }
 
-function intervalCovers(interval: Interval, col: number, w: number): boolean {
+export function intervalCovers(interval: Interval, col: number, w: number): boolean {
   return col >= interval[0] - 0.01 && col + w <= interval[1] + 0.01;
 }
 
@@ -215,7 +216,7 @@ interface Support {
   interval?: Interval;
 }
 
-function supportFromTerrain(def: LevelDef, col: number, w: number, bottomRow: number): Support | null {
+export function supportFromTerrain(def: LevelDef, col: number, w: number, bottomRow: number): Support | null {
   const maxTier = 2 + (def.ledges?.length ?? 0);
   let best: Support | null = null;
   for (let tier = 1; tier <= maxTier; tier += 1) {
@@ -344,18 +345,27 @@ export function levelElements(def: LevelDef): LevelElement[] {
   return out;
 }
 
-function cellRectsOverlap(a: LevelElement, b: LevelElement): boolean {
-  return (
-    overlaps(a.col, a.col + a.w, b.col, b.col + b.w) &&
-    overlaps(a.bottomRow, a.bottomRow + a.h, b.bottomRow, b.bottomRow + b.h)
-  );
-}
-
-function overlapsStackBlocker(def: LevelDef, kind: string, cell: LevelElement): boolean {
+/**
+ * Would a `kind` footprint (col, bottomRow, w, h in cells) overlap the BODY of any
+ * box/stone? Resting exactly on top does not count (half-open ranges). `movingId`
+ * excludes the element being moved. Used by both validation and the editor's hover.
+ */
+export function placementOverlapsStackBlocker(
+  def: LevelDef,
+  kind: string,
+  col: number,
+  bottomRow: number,
+  w: number,
+  h: number,
+  movingId: string | null = null,
+): boolean {
   if (!STACK_SUPPORT_KINDS.has(kind)) return false;
   return levelElements(def).some(
     (item) =>
-      STACK_BLOCKER_KINDS.has(item.kind) && item.id !== cell.id && cellRectsOverlap(cell, item),
+      STACK_BLOCKER_KINDS.has(item.kind) &&
+      item.id !== movingId &&
+      overlaps(col, col + w, item.col, item.col + item.w) &&
+      overlaps(bottomRow, bottomRow + h, item.bottomRow, item.bottomRow + item.h),
   );
 }
 
@@ -414,7 +424,9 @@ export function validateLevel(def: LevelDef): ValidationIssue[] {
     const label = labelFor(item);
     if (!findPlacementSupport(def, item.kind, item.col, item.w, item.bottomRow, item.id)) {
       issues.push({ ref: item.id, code: 'floating', reason: `${label} 悬空` });
-    } else if (overlapsStackBlocker(def, item.kind, item)) {
+    } else if (
+      placementOverlapsStackBlocker(def, item.kind, item.col, item.bottomRow, item.w, item.h, item.id)
+    ) {
       issues.push({ ref: item.id, code: 'overlap', reason: `${label} 与石头/箱子重叠` });
     }
     if (item.col < 0 || item.col + item.w > COLS || item.bottomRow < 0 || item.bottomRow + item.h > ROWS) {

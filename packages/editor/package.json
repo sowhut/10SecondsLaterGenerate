@@ -1,0 +1,21 @@
+{
+  "name": "@10s/editor",
+  "version": "0.0.0",
+  "private": true,
+  "description": "10 Seconds Later — public browser level editor (Canvas authoring on top of @10s/schema).",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@10s/schema": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2",
+    "vite": "^6.0.7"
+  }
+}
