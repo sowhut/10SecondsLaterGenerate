@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+    // Pure module: no DOM, no Node in the shipped source (tests may use node:test).
+    "lib": ["ES2022"],
+    // The support/interval math is a faithful port of the battle-tested generator
+    // (app.js); its dense array indexing is safe, so relax this one strict flag.
+    "noUncheckedIndexedAccess": false
+  },
+  "include": ["src/**/*"]
+}
