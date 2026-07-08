@@ -1,0 +1,23 @@
+{
+  "name": "10s-later-editor",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Open-source, browser-based level editor for 10 Seconds Later — build a level, playtest it in the real Cocos engine, export/submit.",
+  "license": "MIT",
+  "type": "module",
+  "packageManager": "pnpm@9.15.1",
+  "engines": {
+    "node": ">=18",
+    "pnpm": ">=9"
+  },
+  "scripts": {
+    "build": "pnpm -r --if-present build",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "lint": "pnpm -r --if-present lint",
+    "test": "pnpm -r --if-present test",
+    "dev": "pnpm -r --if-present dev"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  }
+}

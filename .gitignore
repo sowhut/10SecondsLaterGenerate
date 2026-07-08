@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+*.tsbuildinfo
+
+# Env / local overrides
+.env
+.env.*
+!.env.example
+*.local
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Agent scratch (Helmor)
+.agent-contexts/
+
+# --- Open-source boundary (see docs/PLAN.md §9) ---
+# Game art is never bundled: sprites are fetched at runtime from a hosted endpoint.
+# Sample level JSON under examples/ is intentionally tracked.
+*.png
+*.jpg
+*.jpeg
+*.webp
