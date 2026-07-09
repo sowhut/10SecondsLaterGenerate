@@ -162,3 +162,21 @@
 - **握手超时太短导致关卡不一致**：旧的 8s 兜底在冷启动（引擎+wasm+资源）未加载完时就触发、退回 `?draft=` 重载 → 沙箱显示的是旧/默认关卡。修：**等握手的宽限期 8s→20s**；兜底**从"URL 重载"改为"best-effort postMessage 直投"**（投递的是精确 `def`，不再有 URL 编码/竞态导致的错关）；加了 6s "首次加载较慢" 的安抚提示。→ 正常情况下握手会先到、直接走 postMessage 投递精确关卡，试玩内容与编辑器一致。
 - **UX（按用户反馈）**：试玩弹窗**去掉所有按钮**（原「返回编辑 ✕」移除）、**去掉点空白关闭**（防误触）；退出改为**键盘 Esc**（父窗口有焦点时）+ **收到 `PLAYTEST_RESULT` 自动返回编辑**（通关/返回都由游戏内键盘/操作驱动，结果一到就关弹窗，约 0.9s 展示后返回）。header 只留状态文本 + 「按 Esc 返回编辑」提示。
 - 注意：跨源 iframe 获焦后，父窗口收不到其键盘事件——所以"结果自动返回"是主退出路径；Esc 作为父窗口有焦点时的补充。
+
+---
+
+## → 游戏侧待办：M3 真机联调的两个阻塞项（2026-07-09，编辑器侧发现）
+
+> 本地联调发现：**编辑器侧已正确投递精确 `def`**（overlay 状态现在会显示注入的关卡名/物件数，console 也打印了 def）。但沙箱表现异常，定位到**两项都在游戏库侧**，编辑器无法处理。
+
+**1. `build/web-mobile` 构建过期 → 注入的草稿不渲染（关卡对不上）**
+- 现象：编辑器投递草稿后，沙箱显示的**不是**编辑器里的关卡，而是默认游戏；顶栏 20s 后才出现"已注入"（其实是编辑器等不到握手走了 best-effort 直投）。
+- 定位：当前被 serve 的 `build/web-mobile` 是 **Jun 23 的旧构建**，`grep` 里 **完全没有** `draftLevel / isPlaytest / EditorState / sandboxReady` —— 即这个构建**根本不含试玩桥/草稿渲染**。而游戏侧试玩源码是 **Jul 8–9**（`PlaytestBridge.ts`/`EditorState.ts`），比所有 build 都新；`build/{web-mobile,wechatgame,wechatgame-001}` 无一含试玩代码。
+- **待办（游戏库侧）**：用 Cocos Creator 从**当前源码重新 Build `web-mobile`**（含 PlaytestBridge + EditorState + LevelGame 试玩分支），再把这个新目录 serve/部署到 `SANDBOX_URL`。之后编辑器注入的草稿即会在真引擎里渲染、与编辑器一致。
+
+**2. 内嵌试玩时隐藏屏上触控按钮（用户要"只键盘操作"）**
+- 现象："左右 4 个操作按钮"是**游戏自己的 TouchControls HUD**（Cocos canvas 内绘制，在 iframe 里）——**编辑器无法移除**（跨源 + 非 DOM）。
+- **待办（游戏库侧）**：`isPlaytest`/内嵌模式下**不建/隐藏 TouchControls**，并确保**键盘输入可用**（方向/跳跃/交互）。与已有"试玩分支跳过体力/进度/榜单/埋点"一致地加一条即可。
+- 可选：给试玩消息约定一个开关（如 `{ type:PLAYTEST_IN, def, controls:'keyboard' }`）供未来细化；当前编辑器已按 keyboard-only 设计，游戏侧直接在 playtest 模式隐藏即可，无需编辑器改动。
+
+> 结论：M3 编辑器侧已完成且正确；真机端到端**卡在游戏库需要一次"含试玩支持的 web-mobile 新构建" + playtest 模式隐藏触控**。这两步做完，用 `VITE_SANDBOX_URL` 指向新构建即可端到端一致。

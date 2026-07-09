@@ -93,13 +93,22 @@ export function openPlaytest(def: LevelDef, cb: PlaytestCallbacks = {}): Playtes
     status.textContent = text;
   }
 
+  function summarize(d: LevelDef): string {
+    const len = (a: unknown): number => (Array.isArray(a) ? a.length : 0);
+    const objs = 3 + (d.bomb ? 1 : 0) + len(d.boxes) + len(d.spikes) + len(d.walls) + len(d.stones) + len(d.rigs) * 2;
+    return `「${d.name}」· ${len(d.rigs)}机关 · ${objs}物件 · ${d.clones}分身`;
+  }
+
   function postDraft(): void {
     if (sent || done) return;
     const win = frame.contentWindow;
     if (!win) return;
+    // Diagnostic: what we send. If the sandbox shows something else, the served build
+    // lacks playtest support (needs a fresh web-mobile build).
+    console.info('[10s editor] playtest → injecting draft:', def.name, def);
     win.postMessage({ type: PLAYTEST_IN, def }, origin === '*' ? '*' : origin);
     sent = true;
-    setStatus('已注入关卡 · 在沙箱里通关本关');
+    setStatus(`已注入 ${summarize(def)} · 沙箱内应显示此关`);
   }
 
   function onMessage(ev: MessageEvent): void {
@@ -155,8 +164,9 @@ export function openPlaytest(def: LevelDef, cb: PlaytestCallbacks = {}): Playtes
   timers.push(
     window.setTimeout(() => {
       if (gotReady || sent || done) return;
-      // No handshake after a long grace — post best-effort (listener is likely live now).
-      setStatus('未收到就绪握手，尝试直接注入关卡…');
+      // No handshake after a long grace → the served build likely has no playtest support
+      // (needs a fresh web-mobile build). Post best-effort anyway in case the listener is live.
+      setStatus('未收到沙箱就绪握手 —— 该构建可能不含试玩支持（需重新构建 web-mobile）。仍尝试直接注入…');
       postDraft();
     }, READY_TIMEOUT_MS),
   );
