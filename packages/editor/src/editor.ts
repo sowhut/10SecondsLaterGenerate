@@ -43,6 +43,7 @@ import {
 
 import { CONFIG } from './config';
 import { type LevelDoc, loadDocs, saveDocs, makeDefaultLevel, newDocId } from './drafts';
+import { openPlaytest, isPlaytestConfigured } from './playtestEmbed';
 
 // --------------------------------------------------------------------------- types
 interface Rect {
@@ -158,6 +159,7 @@ const el = {
   deleteDraftButton: q<HTMLButtonElement>('#deleteDraftButton'),
   inspectorBody: q<HTMLElement>('#inspectorBody'),
   validationList: q<HTMLElement>('#validationList'),
+  playtestButton: q<HTMLButtonElement>('#playtestButton'),
 };
 
 const ctx = el.canvas.getContext('2d') as CanvasRenderingContext2D;
@@ -188,6 +190,19 @@ function setDirty(dirty = true): void {
   currentDoc().name = level().name;
   persist();
   renderAll();
+}
+
+// Per-draft "author beat THIS exact level" signatures. The playtest→submit unlock
+// (won:true) re-locks automatically on any edit, since the signature changes.
+const beaten = new Map<string, string>();
+function levelSignature(): string {
+  return JSON.stringify(level());
+}
+function playtestUnlocked(): boolean {
+  return beaten.get(currentDoc().id) === levelSignature();
+}
+function canPlaytest(): boolean {
+  return isPlaytestConfigured() && validateLevel(level()).length === 0;
 }
 
 // --------------------------------------------------------------------------- pixel geometry
@@ -832,6 +847,17 @@ function renderInspector(): void {
   }
   card.append(stats);
 
+  const pt = document.createElement('div');
+  pt.className = `playtest-hint${playtestUnlocked() ? ' won' : ''}`;
+  pt.textContent = !isPlaytestConfigured()
+    ? '试玩：未配置 SANDBOX_URL（部署 Cocos web 构建后可用）'
+    : validateLevel(def).length
+      ? '试玩：修正校验问题后可试玩'
+      : playtestUnlocked()
+        ? '✓ 已在真机通关 · 可投稿（M4）'
+        : '可试玩 —— 真机通关后解锁投稿（M4）';
+  card.append(pt);
+
   if (def.rigs?.length) {
     const palette = document.createElement('div');
     palette.className = 'rig-palette';
@@ -968,9 +994,22 @@ function renderHeader(): void {
   el.cancelButton.hidden = !state.pending;
 }
 
+function renderActions(): void {
+  const configured = isPlaytestConfigured();
+  const valid = validateLevel(level()).length === 0;
+  el.playtestButton.disabled = !(configured && valid);
+  el.playtestButton.textContent = playtestUnlocked() ? '重玩 ✓' : '试玩';
+  el.playtestButton.title = !configured
+    ? '未配置 VITE_SANDBOX_URL（游戏 web 构建端点）'
+    : !valid
+      ? '先修正校验问题再试玩'
+      : '在真实引擎沙箱里试玩本关（通关后解锁投稿）';
+}
+
 function renderAll(): void {
   if (!state.docs.length) return;
   renderHeader();
+  renderActions();
   renderDrafts();
   renderTools();
   renderInspector();
@@ -1006,6 +1045,17 @@ function wireEvents(): void {
     }
   });
   el.cancelButton.addEventListener('click', cancelDraft);
+  el.playtestButton.addEventListener('click', () => {
+    if (!canPlaytest()) return;
+    const id = currentDoc().id;
+    const sig = levelSignature();
+    openPlaytest(clone(level()), {
+      onResult: (won) => {
+        if (won) beaten.set(id, sig);
+        renderAll();
+      },
+    });
+  });
   el.draftSelect.addEventListener('change', () => selectDraft(Number(el.draftSelect.value)));
   el.addDraftButton.addEventListener('click', addDraft);
   el.cloneDraftButton.addEventListener('click', cloneDraft);

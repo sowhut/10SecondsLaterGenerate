@@ -412,6 +412,74 @@ canvas {
   border-color: rgba(255, 79, 123, 0.55);
 }
 
+.playtest-hint {
+  color: var(--muted);
+  font-size: 11px;
+  margin-top: 8px;
+}
+
+.playtest-hint.won {
+  color: var(--ok);
+}
+
+/* Playtest sandbox overlay */
+.playtest-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(3, 5, 16, 0.82);
+  backdrop-filter: blur(4px);
+}
+
+.playtest-panel {
+  width: min(100%, calc((100vh - 140px) * 1.7778));
+  max-width: 100%;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  background: rgba(13, 16, 40, 0.96);
+  border: 1px solid rgba(124, 90, 167, 0.55);
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);
+}
+
+.playtest-panel.won {
+  border-color: rgba(70, 229, 242, 0.7);
+}
+
+.playtest-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(185, 167, 219, 0.18);
+}
+
+.playtest-head strong {
+  font-size: 14px;
+}
+
+.playtest-status {
+  flex: 1;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.playtest-frame {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border: 0;
+  background: #050817;
+  display: block;
+}
+
 @media (max-width: 1100px) {
   #app {
     grid-template-columns: 220px 1fr;

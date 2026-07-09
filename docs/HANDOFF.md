@@ -62,6 +62,34 @@
 
 ---
 
+## 游戏侧 M3 协调项：`10s.sandboxReady` 握手已实现（2026-07-08，游戏库侧）
+
+> M3（试玩内嵌）需要的游戏侧配合**已在游戏库 `assets/scripts/editor/PlaytestBridge.ts` 完成并类型检查通过**（改动尚未 commit，在游戏工作区）。M3 会话按下面契约对接即可，**无需等我**。
+
+**游戏侧现在的行为（沙箱 = 托管的 Cocos web 构建，放进你的 `<iframe>`）：**
+1. 沙箱启动（`MainMenu.start → PlaytestBridge.init`）且**被 iframe 内嵌**（`window.parent !== window`）时，向 `parent` 发：`{ type: '10s.sandboxReady' }`（targetOrigin `'*'`）。
+2. 监听 `message`：收到 `{ type:'10s.playtest', def, returnScene? }` 且 `def` 合法 → 真引擎载入并试玩。
+3. 通关 → 向**发消息来的那个 window**（`ev.source`，即编辑器）回 `{ type:'10s.playtestResult', won:true, steps }`。
+4. 玩家点「返回编辑」但没通关 → 回 `{ type:'10s.playtestResult', won:false }`。
+5. 仍兼容引导期 `?draft=<encodeURIComponent(JSON)>`（无需握手；结果回 `window.parent`）。
+
+**M3（编辑器侧）要实现的时序：**
+1. 建 `<iframe src=CONFIG.SANDBOX_URL>`（**别在 URL 里塞 draft**，走 postMessage 稳）。
+2. **先挂** `window.addEventListener('message', …)`（在建 iframe 前/同时），因为沙箱启动慢、`sandboxReady` 随后才来。
+3. 收到 `SANDBOX_READY`（`ev.source === iframe.contentWindow`）→ 投递草稿：`iframe.contentWindow.postMessage({ type: PLAYTEST_IN, def }, SANDBOX_ORIGIN)`。
+4. 收到 `PLAYTEST_RESULT` → 关掉/隐藏 iframe；`won:true` 则**解锁"导出/投稿"**（呼应 M4）。
+5. **消息串一律用 `@10s/schema` 的 `PLAYTEST_IN / PLAYTEST_RESULT / SANDBOX_READY`，别硬编码。**
+
+**注意点：**
+- 游戏侧目前 `sandboxReady`/`result` 用 `'*'` 发（MVP）。编辑器侧**要校验 `ev.origin`**；投递草稿用**明确的 `SANDBOX_ORIGIN`**（dev 可 `'*'`）。上线前两边都收紧 origin 白名单。
+- `def` 需过游戏 `isValidDraft`（= schema `isLevelDefShape`，字段吻合）；投递前先跑 `validateLevel` 更稳。
+- `steps` = 通关用的模拟步数（60 = 1s），后端复算防作弊时会用到。
+- 兜底（可选）：若 ~8s 没等到 `sandboxReady`（极旧构建），可退回 `?draft=` 的 iframe src。
+
+**待游戏库那边 commit 后**：`SANDBOX_URL` 指向你部署的 Cocos `web-mobile` 构建；本地联调可指向游戏工程的 web 预览。
+
+---
+
 ## M2 完成记录（2026-07-08）
 
 **结论：完成。** `packages/editor`（`@10s/editor`）跑起来了：能作图 + 校验 + 本地草稿，全程不写 `LevelDef.ts`，承载/校验/常量全部来自 `@10s/schema`。`pnpm -r typecheck && pnpm -r build` 绿；Vite dev/build 均通过。
@@ -96,3 +124,36 @@
 ### 给 M3 的话
 - 试玩内嵌从 `src/playtestEmbed.ts` 接：挂 `<iframe src={CONFIG.SANDBOX_URL}>`，`postMessage({type:PLAYTEST_IN, def})`，监听 `PLAYTEST_RESULT`。**建议先做 §5b-B 就绪握手**——需要你在游戏私有库给 `PlaytestBridge.init()` 加 `postMessage({type:'10s.sandboxReady'})`（schema 侧 `SANDBOX_READY` 常量已就位）。
 - 校验里的"左下控件区 `col<8`"阈值，M3 真机内嵌时对照游戏 `TouchControls` 覆盖范围校准（见 M1 review nit 2）。
+
+---
+
+## M3 完成记录（2026-07-08）
+
+**结论：完成（编辑器侧）。** 试玩内嵌按游戏侧 §5b-B 握手契约接好；`pnpm -r typecheck && pnpm -r build` 绿。真机端到端联调待游戏库 commit + 部署 `SANDBOX_URL` 后进行；本地已用 mock 沙箱验证时序。
+
+### 实现（`packages/editor/src/playtestEmbed.ts` 从 stub → 实模块）
+- `openPlaytest(def, {onResult})`：建模态 overlay + `<iframe src=CONFIG.SANDBOX_URL>`（**URL 不塞 draft**）。**先挂 `message` 监听再 mount iframe**。
+- 时序完全对齐游戏侧 HANDOFF：收到 `SANDBOX_READY`（校验 `ev.origin===SANDBOX_ORIGIN` 且 `ev.source===iframe.contentWindow`）→ `iframe.contentWindow.postMessage({type:PLAYTEST_IN, def}, SANDBOX_ORIGIN)`；收到 `PLAYTEST_RESULT` → 显示结果 + 回调。
+- 消息串全部来自 `@10s/schema`（`PLAYTEST_IN/PLAYTEST_RESULT/SANDBOX_READY`），零硬编码（已 grep 确认打进 bundle）。
+- **origin 白名单**：`SANDBOX_ORIGIN = new URL(CONFIG.SANDBOX_URL).origin`；收发都用它（dev 若同源则自然放行）。
+- **兜底**：`~8s` 没等到 `sandboxReady`（极旧构建）→ 退回 `?draft=` 的 iframe src 重载（关卡过大则提示放弃，不硬发以免 listener 未就绪丢消息）。
+- 关闭：`返回编辑 ✕` 按钮 / 点遮罩 / Esc；关时移除 listener + timer。
+
+### 编辑器接线（`editor.ts` / `index.html` / `styles.css`）
+- topbar 加 `#playtestButton`；**门控** = `isPlaytestConfigured()`（`SANDBOX_URL` 非空）**且** `validateLevel(level())===[]`。未配置/未通过校验时禁用并给 title 提示。
+- 传给沙箱的是 `clone(level())` 快照；投递前隐含已过 `validateLevel`（= 游戏 `isValidDraft`）。
+- **won 解锁**：`won:true` → 按 `draftId → 关卡 JSON 签名` 记进 `beaten` map；**任意编辑改变签名即自动重新上锁**（呼应"作者亲测通关"绑定确切 def）。inspector 显示"✓ 已在真机通关 · 可投稿（M4）"/"真机通关后解锁投稿"。按钮通关后变"重玩 ✓"。
+- **导出/投稿 UI 本身属 M4**——M3 只把 `won` 解锁状态做出来供 M4 gate。
+
+### 本地联调（mock 沙箱，gitignored）
+- `.agent-contexts/m3-playtest/mock-sandbox.html`：实现同一契约（announce ready / 收 playtest / 回 result；含 `?draft=` 兜底）。用法：
+  ```sh
+  python3 -m http.server 5199 --directory .agent-contexts/m3-playtest
+  VITE_SANDBOX_URL=http://127.0.0.1:5199/mock-sandbox.html pnpm --filter @10s/editor dev
+  ```
+  编辑器点「试玩」→ mock announce ready → 收到 def → 点「通关」→ 回 `won:true` → inspector 解锁徽标亮。已验证：env 注入 bundle、契约串入 bundle、mock/dev 均起站。⚠️ 未做浏览器内点击级回归（headless 限制）。
+
+### 给游戏库 / M4 的话
+- 待游戏库 commit 后：部署 Cocos `web-mobile` 构建，把 `VITE_SANDBOX_URL` 指过去即可端到端。origin 上线前两边收紧白名单（现 MVP `'*'` 发、编辑器侧已校验收方 origin）。
+- `steps`（通关模拟步数，60=1s）已透传到 `onResult`，M4 投稿信封可带上供后端复算防作弊。
+- M4：投稿走 `CONFIG.API_BASE_URL`；导出 `LevelEnvelope`（schema 已定，含 `author?` 占位）；**gate = `won` 解锁**（editor 已具备该状态，M4 直接读 `beaten`/加导出按钮即可）。
