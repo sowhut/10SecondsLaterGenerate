@@ -6,12 +6,15 @@
  *   host  → cocos  { type: '10s.playtest', def, returnScene? }  (after ready)
  *   cocos → host   { type: '10s.playtestResult', won, steps? }
  *
- * Timing: the sandbox boots slowly, so we attach the listener FIRST, wait for
- * `sandboxReady`, THEN post the draft. Message strings come from @10s/schema — never
- * hardcoded. Origin is whitelisted to the configured SANDBOX_URL.
+ * Timing: the sandbox boots slowly (engine + wasm + assets), so we attach the listener
+ * FIRST, wait for `sandboxReady`, THEN post the draft — the handshake is what guarantees
+ * the exact edited level reaches the engine. Message strings come from @10s/schema.
+ * Origin is whitelisted to the configured SANDBOX_URL.
  *
- * Fallback: if `sandboxReady` never arrives (~8s, e.g. a very old build), reload the
- * iframe with `?draft=` boot (URL length permitting).
+ * If `sandboxReady` never arrives (a very old build, or a broken deploy), after a long
+ * grace we post the draft best-effort anyway (the listener is almost certainly live by
+ * then). We do NOT fall back to a `?draft=` URL reload — that raced the boot and could
+ * show a stale/default level.
  */
 import { PLAYTEST_IN, PLAYTEST_RESULT, SANDBOX_READY, type LevelDef } from '@10s/schema';
 import { CONFIG } from './config';
@@ -37,19 +40,18 @@ function sandboxOrigin(): string {
   }
 }
 
-function withParam(url: string, key: string, value: string): string {
-  const sep = url.includes('?') ? '&' : '?';
-  return `${url}${sep}${key}=${value}`;
-}
-
-const READY_FALLBACK_MS = 8000;
-const MAX_URL_DRAFT = 8000;
+/** Cold engine boot can be slow; wait generously for the ready handshake. */
+const READY_TIMEOUT_MS = 20000;
+/** Show a "still loading" reassurance if boot drags on. */
+const SLOW_HINT_MS = 6000;
+/** How long the result flashes in the header before returning to the editor. */
+const RESULT_LINGER_MS = 900;
 
 let active: PlaytestHandle | null = null;
 
 /**
  * Open the playtest sandbox for `def`. Returns a handle; opening again closes the prior
- * session. No-op-safe if SANDBOX_URL is empty (caller should gate on isPlaytestConfigured).
+ * session. Caller should gate on isPlaytestConfigured().
  */
 export function openPlaytest(def: LevelDef, cb: PlaytestCallbacks = {}): PlaytestHandle {
   active?.close();
@@ -58,14 +60,15 @@ export function openPlaytest(def: LevelDef, cb: PlaytestCallbacks = {}): Playtes
   let sent = false;
   let gotReady = false;
   let done = false;
-  let fallbackTimer = 0;
+  const timers: number[] = [];
 
-  // ---- overlay DOM ----
+  // ---- overlay DOM (no clickable buttons — keyboard only) ----
   const overlay = document.createElement('div');
   overlay.className = 'playtest-overlay';
 
   const panel = document.createElement('div');
   panel.className = 'playtest-panel';
+  panel.tabIndex = -1; // focusable so Esc reaches the parent after a result
 
   const head = document.createElement('div');
   head.className = 'playtest-head';
@@ -73,11 +76,10 @@ export function openPlaytest(def: LevelDef, cb: PlaytestCallbacks = {}): Playtes
   title.textContent = `试玩 · ${def.name}`;
   const status = document.createElement('span');
   status.className = 'playtest-status';
-  const closeBtn = document.createElement('button');
-  closeBtn.className = 'playtest-close';
-  closeBtn.type = 'button';
-  closeBtn.textContent = '返回编辑 ✕';
-  head.append(title, status, closeBtn);
+  const hint = document.createElement('span');
+  hint.className = 'playtest-hint-inline';
+  hint.textContent = '按 Esc 返回编辑';
+  head.append(title, status, hint);
 
   const frame = document.createElement('iframe');
   frame.className = 'playtest-frame';
@@ -100,18 +102,6 @@ export function openPlaytest(def: LevelDef, cb: PlaytestCallbacks = {}): Playtes
     setStatus('已注入关卡 · 在沙箱里通关本关');
   }
 
-  function urlBootFallback(): void {
-    if (sent || done || gotReady) return;
-    const encoded = encodeURIComponent(JSON.stringify(def));
-    if (encoded.length > MAX_URL_DRAFT) {
-      setStatus('沙箱未回应握手，且关卡过大，无法用 URL 兜底（检查 SANDBOX_URL / 游戏构建）');
-      return;
-    }
-    setStatus('沙箱未回应握手，改用 URL 引导重载…');
-    sent = true; // the reloaded frame boots straight into the draft
-    frame.src = withParam(CONFIG.SANDBOX_URL, 'draft', encoded);
-  }
-
   function onMessage(ev: MessageEvent): void {
     if (origin !== '*' && ev.origin !== origin) return;
     if (ev.source && ev.source !== frame.contentWindow) return;
@@ -126,14 +116,17 @@ export function openPlaytest(def: LevelDef, cb: PlaytestCallbacks = {}): Playtes
     if (data.type === PLAYTEST_RESULT) {
       done = true;
       const won = !!data.won;
-      setStatus(won ? `✓ 通关！可投稿（M4）${data.steps ? ` · ${data.steps} 步` : ''}` : '未通关 · 可返回编辑再试');
       panel.classList.toggle('won', won);
+      setStatus(won ? `✓ 通关！可投稿（M4）${data.steps ? ` · ${data.steps} 步` : ''}` : '未通关 · 返回编辑');
       cb.onResult?.(won, data.steps);
+      // Auto-return to the editor (there is no close button; result IS the keyboard/
+      // gameplay-driven exit). Esc still works while the parent has focus.
+      timers.push(window.setTimeout(close, RESULT_LINGER_MS));
     }
   }
 
   function close(): void {
-    if (fallbackTimer) window.clearTimeout(fallbackTimer);
+    for (const t of timers) window.clearTimeout(t);
     window.removeEventListener('message', onMessage);
     document.removeEventListener('keydown', onKey);
     overlay.remove();
@@ -145,10 +138,6 @@ export function openPlaytest(def: LevelDef, cb: PlaytestCallbacks = {}): Playtes
     if (ev.key === 'Escape') close();
   }
 
-  closeBtn.addEventListener('click', close);
-  overlay.addEventListener('click', (ev) => {
-    if (ev.target === overlay) close();
-  });
   document.addEventListener('keydown', onKey);
 
   // Listener FIRST, then mount the iframe (sandboxReady may fire as soon as it boots).
@@ -156,7 +145,21 @@ export function openPlaytest(def: LevelDef, cb: PlaytestCallbacks = {}): Playtes
   setStatus('加载沙箱…');
   frame.src = CONFIG.SANDBOX_URL;
   document.body.append(overlay);
-  fallbackTimer = window.setTimeout(urlBootFallback, READY_FALLBACK_MS);
+  panel.focus();
+
+  timers.push(
+    window.setTimeout(() => {
+      if (!gotReady && !done) setStatus('加载沙箱…（首次加载引擎/资源较慢，请稍候）');
+    }, SLOW_HINT_MS),
+  );
+  timers.push(
+    window.setTimeout(() => {
+      if (gotReady || sent || done) return;
+      // No handshake after a long grace — post best-effort (listener is likely live now).
+      setStatus('未收到就绪握手，尝试直接注入关卡…');
+      postDraft();
+    }, READY_TIMEOUT_MS),
+  );
 
   const handle: PlaytestHandle = { close };
   active = handle;

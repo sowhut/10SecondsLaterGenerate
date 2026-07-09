@@ -450,6 +450,17 @@ canvas {
   border-color: rgba(70, 229, 242, 0.7);
 }
 
+.playtest-panel:focus {
+  outline: none;
+}
+
+.playtest-hint-inline {
+  color: var(--muted);
+  font-size: 11px;
+  white-space: nowrap;
+  opacity: 0.75;
+}
+
 .playtest-head {
   display: flex;
   align-items: center;
