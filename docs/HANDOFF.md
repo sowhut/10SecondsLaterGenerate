@@ -169,14 +169,18 @@
 
 > 本地联调发现：**编辑器侧已正确投递精确 `def`**（overlay 状态现在会显示注入的关卡名/物件数，console 也打印了 def）。但沙箱表现异常，定位到**两项都在游戏库侧**，编辑器无法处理。
 
-**1. `build/web-mobile` 构建过期 → 注入的草稿不渲染（关卡对不上）**
-- 现象：编辑器投递草稿后，沙箱显示的**不是**编辑器里的关卡，而是默认游戏；顶栏 20s 后才出现"已注入"（其实是编辑器等不到握手走了 best-effort 直投）。
-- 定位：当前被 serve 的 `build/web-mobile` 是 **Jun 23 的旧构建**，`grep` 里 **完全没有** `draftLevel / isPlaytest / EditorState / sandboxReady` —— 即这个构建**根本不含试玩桥/草稿渲染**。而游戏侧试玩源码是 **Jul 8–9**（`PlaytestBridge.ts`/`EditorState.ts`），比所有 build 都新；`build/{web-mobile,wechatgame,wechatgame-001}` 无一含试玩代码。
-- **待办（游戏库侧）**：用 Cocos Creator 从**当前源码重新 Build `web-mobile`**（含 PlaytestBridge + EditorState + LevelGame 试玩分支），再把这个新目录 serve/部署到 `SANDBOX_URL`。之后编辑器注入的草稿即会在真引擎里渲染、与编辑器一致。
+证据（编辑器侧已确认发送正确 def）：用户 console 打印
+`[10s editor] playtest → injecting draft: 新关卡 {…, spawn:{col:15…}}`（= 编辑器当前草稿），
+同一 console 又有 `LoadScene db://assets/scenes/ArtShowcase.scene`（= 沙箱启动到了 ArtShowcase）。
 
-**2. 内嵌试玩时隐藏屏上触控按钮（用户要"只键盘操作"）**
-- 现象："左右 4 个操作按钮"是**游戏自己的 TouchControls HUD**（Cocos canvas 内绘制，在 iframe 里）——**编辑器无法移除**（跨源 + 非 DOM）。
-- **待办（游戏库侧）**：`isPlaytest`/内嵌模式下**不建/隐藏 TouchControls**，并确保**键盘输入可用**（方向/跳跃/交互）。与已有"试玩分支跳过体力/进度/榜单/埋点"一致地加一条即可。
-- 可选：给试玩消息约定一个开关（如 `{ type:PLAYTEST_IN, def, controls:'keyboard' }`）供未来细化；当前编辑器已按 keyboard-only 设计，游戏侧直接在 playtest 模式隐藏即可，无需编辑器改动。
+**任务 1（阻塞）：出一个"能试玩"的 web-mobile 构建**
+- **根因**：被 serve 的 `build/web-mobile` 是 **Jun 23 旧构建**，**首发场景是 `ArtShowcase.scene`**。而 `PlaytestBridge.init()` 只在 `MainMenu.start()`（`assets/scripts/game/MainMenu.ts:120`）里调用——启动到 ArtShowcase 就永不 init → 不发 `10s.sandboxReady`、不挂 message 监听 → 注入的草稿被忽略（该旧构建也根本不含 `draftLevel/isPlaytest/EditorState/sandboxReady`；源码是 Jul 8–9，比所有 build 都新）。
+- **做**：从当前源码**重新 Build `web-mobile`，首发场景设为 `Main.scene`**（其 MainMenu 会跑 PlaytestBridge.init）。可选更稳：把 `PlaytestBridge.init()` 挪到随任意场景都会执行的 bootstrap（persistent node / 高 executionOrder 启动脚本），则首发场景是谁都能握手。
+- **验收**：`python3 -m http.server 5200 --directory build/web-mobile`；编辑器 `VITE_SANDBOX_URL=http://127.0.0.1:5200/`。点「试玩」应**很快**显示"沙箱就绪 · 注入关卡"（真握手，非 20s 兜底），且沙箱渲染的关卡 = 编辑器里的关卡。新构建 JS 里应能 grep 到 `sandboxReady`。
 
-> 结论：M3 编辑器侧已完成且正确；真机端到端**卡在游戏库需要一次"含试玩支持的 web-mobile 新构建" + playtest 模式隐藏触控**。这两步做完，用 `VITE_SANDBOX_URL` 指向新构建即可端到端一致。
+**任务 2：内嵌试玩时隐藏屏上 4 个触控按钮（键盘已支持，不用新写）**
+- **现状**：`assets/scripts/input/TouchControls.ts` **同时**画 4 个屏上按钮**和**处理键盘（方向键/WASD，`KEY_DOWN/KEY_UP`，见 line 96/336/345）。`LevelGame.ts:139-142` 建 Controls 节点，`:177-180` 用 `setActive` 开关。**注意 `setActive(false)` 会让键盘一起失效**（line 53 "all controls inert"），所以不能直接 setActive(false)。
+- **做**：`EditorState.isPlaytest` 时**只隐藏按钮视觉**（按钮 sprite 节点 opacity=0 / active=false），**保留键盘监听**。建议给 TouchControls 加 `setChromeVisible(false)`（只管按钮显隐、不碰键盘），由 `LevelGame` 在 `isPlaytest` 时调用。
+- **验收**：内嵌试玩里 4 个按钮不见；方向键/WASD + 跳跃/交互键仍能操作角色。（键盘要生效需 iframe 获焦——用户点一下游戏画面即可；编辑器侧不强制夺焦以保留父窗口 Esc。）
+
+> 结论：**M3 编辑器侧已完成且正确、无需改动**（`LevelGame.ts:115` 已用草稿 def 渲染）。真机端到端只卡在游戏库这两步：**① 用 Main.scene 首发重建 web-mobile；② playtest 模式隐藏触控按钮**。做完把 `VITE_SANDBOX_URL` 指向新构建即端到端一致。
