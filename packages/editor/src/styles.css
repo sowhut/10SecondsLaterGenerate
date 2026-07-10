@@ -101,6 +101,10 @@ header {
   font-size: 12px;
 }
 
+.storage-error {
+  color: var(--bad);
+}
+
 h2 {
   margin: 16px 0 8px;
   font-size: 12px;
@@ -459,6 +463,20 @@ canvas {
   font-size: 11px;
   white-space: nowrap;
   opacity: 0.75;
+}
+
+.playtest-error-actions {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.playtest-error-actions[hidden] {
+  display: none;
+}
+
+.playtest-error-actions button {
+  padding: 5px 8px;
+  font-size: 11px;
 }
 
 .playtest-head {

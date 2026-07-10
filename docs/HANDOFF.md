@@ -28,9 +28,9 @@
 **目标**：把旧生成器的 Canvas 作图 UI 搬进 `packages/editor`，改为依赖 `@10s/schema`、**去掉"写回 LevelDef.ts"**、贴图走可配置托管端点、以静态站（Vite）跑起来。**M2 只到"能作图 + 校验 + 本地草稿"**；试玩内嵌是 M3、导出/投稿是 M4。
 
 ### 移植源（只读参考）
-- 旧生成器：`/Users/yangyang/Documents/10SecsLaterGenerate/public/{app.js,index.html,styles.css}`（vanilla JS，含完整 Canvas 作图/地形/校验/rig 配色）。
+- 旧生成器：`<local-generator>/public/{app.js,index.html,styles.css}`（vanilla JS，含完整 Canvas 作图/地形/校验/rig 配色）。
 - 契约与工具：`@10s/schema`（本仓库 `packages/schema`）——**类型、`validateLevel`、`grid` 常量、`snapHalf/clamp`、`RIG_COLORS`、`MAX_RIGS`、`surfaceRowForTier` 等都从这里 import，别再抄一份**。
-- 游戏库（只读）：`/Users/yangyang/cocos-games/10SecsLater`（如需再核对语义）。
+- 游戏库（只读）：`<game-repo>`（如需再核对语义）。
 
 ### 必做步骤
 1. **脚手架**：`packages/editor` 用 **Vite**（dev server + 静态构建）；TS（`app.js`→`app.ts`，边移边加类型）；workspace 依赖 `@10s/schema`。
@@ -163,6 +163,14 @@
 - **UX（按用户反馈）**：试玩弹窗**去掉所有按钮**（原「返回编辑 ✕」移除）、**去掉点空白关闭**（防误触）；退出改为**键盘 Esc**（父窗口有焦点时）+ **收到 `PLAYTEST_RESULT` 自动返回编辑**（通关/返回都由游戏内键盘/操作驱动，结果一到就关弹窗，约 0.9s 展示后返回）。header 只留状态文本 + 「按 Esc 返回编辑」提示。
 - 注意：跨源 iframe 获焦后，父窗口收不到其键盘事件——所以"结果自动返回"是主退出路径；Esc 作为父窗口有焦点时的补充。
 
+### M3 可靠性与托管模式收口（2026-07-10）
+
+- **部署模式确定**：GitHub 用户可在本地启动编辑器，官网也部署同一编辑器构建；两者都通过 `VITE_SANDBOX_URL` 连接官方托管的 Cocos sandbox。编辑器开源不等于公开游戏引擎源码。
+- **跨域边界**：编辑器只接受配置的 sandbox origin 且 `ev.source === iframe.contentWindow`；sandbox 部署需允许官网和约定 localhost origin 作为 `frame-ancestors`，游戏侧消息监听也使用同一 allowlist。
+- **超时行为修正**：20s 未收到 `sandboxReady` 时不再 best-effort 盲投，改为明确失败状态；仅失败时显示“重试 / 返回编辑”，正常试玩仍保持无按钮。
+- **配置防护**：空值、非法 URL、`javascript:` 等非 HTTP(S) 地址不会启用试玩。
+- **草稿与校验修复**：无效 tier、升降台越界/悬空、地形越界/重叠会阻止试玩；localStorage 读写失败会提示，损坏草稿会隔离到 recovery key。
+
 ---
 
 ## → 游戏侧待办：M3 真机联调的两个阻塞项（2026-07-09，编辑器侧发现）
@@ -184,3 +192,36 @@
 - **验收**：内嵌试玩里 4 个按钮不见；方向键/WASD + 跳跃/交互键仍能操作角色。（键盘要生效需 iframe 获焦——用户点一下游戏画面即可；编辑器侧不强制夺焦以保留父窗口 Esc。）
 
 > 结论：**M3 编辑器侧已完成且正确、无需改动**（`LevelGame.ts:115` 已用草稿 def 渲染）。真机端到端只卡在游戏库这两步：**① 用 Main.scene 首发重建 web-mobile；② playtest 模式隐藏触控按钮**。做完把 `VITE_SANDBOX_URL` 指向新构建即端到端一致。
+
+---
+
+## 游戏侧回执（2026-07-09，游戏库侧）
+
+- **任务 2（隐藏触控按钮、保留键盘）：✅ 代码完成**（`TouchControls.setChromeVisible` + `LevelGame` 在 `playtest` 时调用；键盘不受影响）。截图已确认试玩里无屏上按钮。
+- **任务 1（重建 web-mobile 首发 Main）：需你在 Cocos 执行**（我无法跑 Cocos 构建）。⚠️ 顺带发现：`build/wechatgame`(老) 首发也是 ArtShowcase，只有 `build/wechatgame-001` 是 Main——**提交微信的小游戏包也要确认从 Main 首发**。
+
+### ⚠️ 新问题：试玩渲染的是"空白默认关"，不是编辑器里摆的关卡
+用户截图：试玩沙箱里是"满地板 + spawn + key + door"（= `makeDefaultLevel` 形状），但编辑器里摆的是有 ledges/bomb/spike/lift 的关卡；且编辑器 overlay 卡在"加载沙箱..."却已在跑关卡。
+
+- **游戏侧已排查：`LevelGame.start` 试玩分支确实用 `EditorState.draftLevel` 渲染，代码无误。** 所以"渲染成空白关"= **游戏收到的 def 本身就是空白的**。
+- **强怀疑：编辑器投递的是默认/空白 def，不是当前草稿**（M3 编辑器侧）。请 M3 会话查 `playtestEmbed.ts`：**点「试玩」时 postMessage 出去的 def 到底是哪来的**——是不是发了 `makeDefaultLevel()`、或某个未同步/克隆前的草稿、或握手/origin 不匹配后走兜底投了默认。
+- **游戏侧已加决定性诊断日志**（未 commit，需重建 web-mobile 才能看到），在**沙箱 iframe 的 console**打印：
+  - `[10s sandbox] announced sandboxReady to parent`（握手已发）
+  - `[10s sandbox] msg from <origin> type=10s.playtest → name="…" ground=N boxes=N spikes=N ledges=N clones=N`（**实际收到的 def 内容**）
+  - `[10s sandbox] LevelGame rendering draft: <name> ground=N objs=N`（实际渲染的 def）
+- **判读**：
+  - 收到的 def = 空（ground=0/objs=0）→ **编辑器发错 def**（M3 修）。
+  - 收到的 def = 摆好的那个，但画面仍空 → 游戏渲染 bug（游戏侧再查 World.build）。
+  - 完全没有 `type=10s.playtest` 一行（但有 `announced sandboxReady`）→ 编辑器没回投 / origin 被拒（M3 查 origin 白名单与回投时序）。
+
+### 根因已确认（2026-07-09，用户 console）
+- 沙箱 console 出现 `LoadScene db://assets/scenes/ArtShowcase.scene` + **无任何 `[10s sandbox]` 日志** → 当前 serve/预览的沙箱是**旧的、从 ArtShowcase 启动**的版本，`PlaytestBridge.init()`（只在 `MainMenu.start`）从不执行 → 注入被无视。
+- **修法**：让沙箱从 **`Main` 场景**启动即可。**用 Cocos「预览/运行」即可（跑当前源码、含新代码、免 build）**；把 `VITE_SANDBOX_URL` 指向预览地址（如 `http://localhost:7456`，origin 要与握手校验一致）。或 Build web-mobile 时「起始场景=Main」。
+- **编辑器侧待观察**：这次编辑器注入的 def 只有 `spawn/key/door`、`rigs:[]`，无其它物件。链路修通后若沙箱画面 = 注入 def 但 ≠ 编辑器画布所摆，则 M3 查 `playtestEmbed.ts` 从画布取 `level()` 的完整性（是否漏了 boxes/spikes/ledges 等，或发了未同步草稿）。
+
+### 游戏侧改进：沙箱可**直接从 Game 场景启动**（2026-07-09）
+应"web 端不该依赖 Main 菜单"的意见，游戏侧已改：
+- `PlaytestBridge.init()` 现在**也在 `LevelGame.start()` 调用**（幂等）；新增 `PlaytestBridge.isEmbedded()`（web 且被 iframe 内嵌）与 `menuBootstrapped` 标记。
+- 若沙箱**直接以 `Game` 为首发场景**、内嵌、且尚无草稿 → 显示"等待编辑器投递关卡…"占位并等待；编辑器投递 → 载入并试玩。**不再需要经过 Main 菜单。**
+- **对本地联调的影响**：Cocos 预览**打开 `Game.scene` 直接预览即可**（不必再开 Main）；把 `VITE_SANDBOX_URL` 指向该预览 origin。Main 首发仍然可用（不回归）。
+- 仍未 commit（游戏工作区）。M3 无需改动——契约不变（`sandboxReady`/`playtest`/`playtestResult` 一致）。

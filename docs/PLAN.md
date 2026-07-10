@@ -2,7 +2,7 @@
 
 > **这份文档是本仓库的唯一执行依据，自包含。** 新会话开工前请完整读一遍。
 > 本仓库 = **对外开源的 Web 关卡编辑器 monorepo**。游戏引擎、美术、商业关卡、后端 secrets **都不在这里**，各自留在私有库。
-> 最近更新：2026-07-08。
+> 最近更新：2026-07-10。
 
 ---
 
@@ -12,13 +12,15 @@
 - **为什么开源**：受众多来自 GitHub；开源编辑器做引流入口。**只开源"关卡格式 + 示例关卡 + 编辑器前端"，后端私有。**
 - **不要重造引擎**：试玩必须用**真实 Cocos 引擎**（内嵌沙箱，postMessage 通信），否则"作者通关"不等于别人能通关。
 - **美术不进库**：贴图按名字从托管端点取（`/sprites/<name>.png`），仓库里**不提交任何 PNG**。
+- **运行模式**：编辑器可在用户本地或官网运行；两者都通过 `VITE_SANDBOX_URL`
+  连接你部署的同一个 Cocos web 沙箱，GitHub 用户无需私有游戏源码即可试玩。
 - **本仓库结构**：`pnpm` workspaces monorepo：`packages/schema` + `packages/editor` + `examples/`。
 
 ---
 
 ## 1. 背景与产品全景
 
-**游戏本体**（私有库 `/Users/yangyang/cocos-games/10SecsLater`）：Cocos Creator 3.8.8 + 纯 TS 的时间循环解谜平台跳跃游戏「10 Seconds Later / 10秒之后」。目标平台微信小游戏 + web-mobile。核心是**确定性 60 步/秒模拟 + 分身回放**：玩家先录制若干"分身"，最后本体与分身同台，持钥匙到门即通关。
+**游戏本体**（私有库 `<game-repo>`）：Cocos Creator 3.8.8 + 纯 TS 的时间循环解谜平台跳跃游戏「10 Seconds Later / 10秒之后」。目标平台微信小游戏 + web-mobile。核心是**确定性 60 步/秒模拟 + 分身回放**：玩家先录制若干"分身"，最后本体与分身同台，持钥匙到门即通关。
 
 **整体产品分三块**：① 官网介绍 ② 编辑器投稿 + 广场投票 + 管理员采纳（UGC）③ 网页版试玩。**本仓库负责 ②（Web 端 UGC 编辑器 + 投稿）**。
 
@@ -36,6 +38,7 @@
 4. **账号**：初期 **GitHub OAuth**（受众来自开源、摩擦最低）。属后端阶段；**现在就在导出信封里预留 `author` 字段**，接入零改造。
 5. **美术不泄露**：贴图运行时从**可配置托管端点**按名取；仓库不提交 PNG。（服务端点公开可读 ≠ 把美术以开源许可授权出去。）
 6. **单一数据源**：`LevelDef` 关卡格式以游戏私有库的 `assets/scripts/level/LevelDef.ts` 为事实源；本仓库 `packages/schema` 是它的公开镜像/契约（见 §5a、§6-M1）。
+7. **自托管边界**：本仓库可独立启动编辑器，但完整试玩依赖官方托管 sandbox；本地编辑器和线上编辑器只是不同宿主 origin，不复制或公开 Cocos 源码。
 
 ---
 
@@ -43,8 +46,8 @@
 
 | 来源 | 路径 | 复用什么 | 注意 |
 |---|---|---|---|
-| **游戏私有库** | `/Users/yangyang/cocos-games/10SecsLater` | `assets/scripts/level/LevelDef.ts`（schema 事实源）；`assets/scripts/editor/PlaytestBridge.ts`/`EditorState.ts`（试玩契约实现）；`assets/scripts/Grid.ts`（网格常量）；`tools/export-levels.mts`（导出关卡 JSON 供示例）；`assets/resources/showcase/sprites/`（美术，**托管用、不复制进本库**） | 只读参考；**不把美术/引擎源码搬进本库** |
-| **旧本地生成器** | `/Users/yangyang/Documents/10SecsLaterGenerate`（注意：是 `Secs` 那个旧目录，非本仓库） | `public/app.js`（**已实现地形编辑、承载校验 `hasSupport/findPlacementSupport`、rig 自动配色、0.5 吸附、Canvas 渲染**）、`public/index.html`、`public/styles.css` | **移植前端**；但 **丢弃其"写回 `LevelDef.ts`"的服务端**（`/api/levels/*`、`/api/level/create|delete` 会 `writeFile` 到游戏源码，属你私人作者流，不进公开编辑器） |
+| **游戏私有库** | `<game-repo>` | `assets/scripts/level/LevelDef.ts`（schema 事实源）；`assets/scripts/editor/PlaytestBridge.ts`/`EditorState.ts`（试玩契约实现）；`assets/scripts/Grid.ts`（网格常量）；`tools/export-levels.mts`（导出关卡 JSON 供示例）；`assets/resources/showcase/sprites/`（美术，**托管用、不复制进本库**） | 只读参考；**不把美术/引擎源码搬进本库** |
+| **旧本地生成器** | `<local-generator>`（注意：是 `Secs` 那个旧目录，非本仓库） | `public/app.js`（**已实现地形编辑、承载校验 `hasSupport/findPlacementSupport`、rig 自动配色、0.5 吸附、Canvas 渲染**）、`public/index.html`、`public/styles.css` | **移植前端**；但 **丢弃其"写回 `LevelDef.ts`"的服务端**（`/api/levels/*`、`/api/level/create|delete` 会 `writeFile` 到游戏源码，属你私人作者流，不进公开编辑器） |
 
 > 旧生成器保留给你私人出正式关卡用（它直接改游戏 `LevelDef.ts`）。**公开编辑器是它的"无写回"演进版**，产出改为导出 JSON / 提交后端。
 
@@ -85,6 +88,7 @@
 
 - **工具链**：`pnpm` workspaces。`packages/schema` 用 TS 编译出 JS + `.d.ts`。`packages/editor` 可先保持 vanilla + 一个静态服务，或加 **Vite** 做 dev server / 构建（推荐 Vite，便于 env 注入与部署）。
 - **部署**：`packages/editor` 构建成纯静态站，上你的官网/CDN。**沙箱 Cocos 构建和 sprites 由游戏库单独托管**，编辑器按 §7 的 URL 引用。
+- **跨域嵌入**：sandbox 需允许官网编辑器和约定的 localhost origin 作为 `frame-ancestors`，并在 Cocos 的消息接收侧校验同一 allowlist；编辑器侧始终校验 sandbox origin + iframe source。
 
 ---
 
@@ -158,9 +162,7 @@ Cocos → 宿主(编辑器):   { type: '10s.playtestResult', won: boolean, steps
 ```
 - `def` 必须是合法 `LevelDef`（沙箱内做最小 shape 校验）。
 - `won === true` = **作者亲测通关**，是解锁"投稿/导出为成品"的客户端信号。
-- **时序坑（重要）**：iframe 里的 Cocos 构建启动需要时间，`PlaytestBridge` 在 `MainMenu.start()` 才挂上 message 监听。两种可靠做法：
-  - **A（零 Cocos 改动）**：直接用 `iframe.src = <SANDBOX_URL>?draft=...` 引导期加载（现代浏览器 URL 容量足够放几 KB 的 def；超大关卡再退 B）。
-  - **B（推荐，需游戏库配合）**：给 `PlaytestBridge` 加一个"就绪握手"——`init()` 时向 `parent` 发 `{ type:'10s.sandboxReady' }`；编辑器收到后再 `postMessage` 草稿。**这是需要在游戏私有库补的一小步**（见 §10 协调项）。
+- **时序（硬要求）**：iframe 里的 Cocos 构建启动需要时间。托管 sandbox 必须在消息监听器挂好后向父页面发送 `{ type:'10s.sandboxReady' }`；编辑器只在收到该握手后投递草稿。超时进入可重试错误态，禁止向未就绪构建盲投或退回 URL 草稿。
 - 安全：正式上线时 Cocos 侧应校验 `postMessage` 来源 origin 白名单；编辑器侧校验回传 origin。
 
 ### 5c. 网格常量（放 `packages/schema/src/grid.ts`；渲染/吸附用）
@@ -251,8 +253,8 @@ export const CONFIG = {
 
 ## 10. 需要在**游戏私有库**协调的小改动（跨库）
 
-1. **沙箱就绪握手（§5b-B，推荐）**：`assets/scripts/editor/PlaytestBridge.ts` 的 `init()` 里，Web 环境下向 `window.parent` 发 `{ type:'10s.sandboxReady' }`，让编辑器知道何时 `postMessage` 草稿。
-2. **托管沙箱构建**：游戏库出 `web-mobile` 构建，部署到 `SANDBOX_URL`；`LEVEL_BASE_URL` 生产值等备案后再填（当前是 dev IP，勿带进生产）。
+1. **沙箱 bootstrap**：`PlaytestBridge.init()` 必须随 sandbox 首发场景执行，并在 Web 内嵌环境发 `{ type:'10s.sandboxReady' }`；不能依赖用户先经过主菜单。
+2. **托管沙箱构建**：游戏库出 `web-mobile` 构建并部署到 `SANDBOX_URL`；允许官网编辑器与约定 localhost origin iframe 嵌入，消息接收端校验同一 origin allowlist。
 3. **托管 sprites**：把 `assets/resources/showcase/sprites` 以 `<name>.png` 形式暴露到 `SPRITE_BASE_URL`（公开可读；不改变"不把美术以开源许可授权"的立场）。
 4. **schema 同步**：游戏 `LevelDef.ts` 与 `packages/schema` 保持一致（游戏 import 该包，或加 CI diff 校验）。
 
@@ -272,6 +274,6 @@ export const CONFIG = {
 ## 附：新会话开工提示
 
 1. 先读本文件全部。
-2. 关联私有库只读参考：游戏 `/Users/yangyang/cocos-games/10SecsLater`（`LevelDef.ts`、`editor/PlaytestBridge.ts`、`Grid.ts`、`tools/export-levels.mts`）；旧生成器 `/Users/yangyang/Documents/10SecsLaterGenerate`（`public/app.js` 移植源）。
+2. 关联私有库只读参考：游戏 `<game-repo>`（`LevelDef.ts`、`editor/PlaytestBridge.ts`、`Grid.ts`、`tools/export-levels.mts`）；旧生成器 `<local-generator>`（`public/app.js` 移植源）。
 3. 按 M0→M6 推进，每个里程碑跑 §11 对应验收。
 4. 跨库改动（§10）需在游戏库那侧做，别在本库尝试改游戏。

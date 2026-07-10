@@ -9,7 +9,7 @@
  *   3. Sprites load from a configurable hosted endpoint (`CONFIG.SPRITE_BASE_URL`);
  *      missing art degrades to a labeled placeholder. No PNGs live in this repo.
  *
- * Playtest embed (M3) and export/submit (M4) are out of scope here.
+ * Playtest embed is wired through `./playtestEmbed`; export/submit remains M4.
  */
 import {
   type LevelDef,
@@ -137,6 +137,7 @@ const state = {
   images: new Map<string, HTMLImageElement>(),
   failed: new Set<string>(),
   dirty: false,
+  storageError: null as string | null,
 };
 
 function q<T extends HTMLElement>(sel: string): T {
@@ -177,8 +178,10 @@ function setLevel(next: LevelDef): void {
 function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
-function persist(): void {
-  saveDocs(state.docs);
+function persist(): boolean {
+  const result = saveDocs(state.docs);
+  state.storageError = result.ok ? null : result.error ?? '本地保存失败';
+  return result.ok;
 }
 function resetInteraction(): void {
   state.selectedId = null;
@@ -188,7 +191,7 @@ function resetInteraction(): void {
 function setDirty(dirty = true): void {
   state.dirty = dirty;
   currentDoc().name = level().name;
-  persist();
+  if (dirty) state.dirty = !persist();
   renderAll();
 }
 
@@ -707,6 +710,7 @@ function deleteSelected(): void {
   const item = selectedItem();
   const def = level() as any;
   if (!item) return;
+  if (item.kind === 'spawn' || item.kind === 'key' || item.kind === 'door') return;
   if (item.implicit && item.kind === 'ground') materializeGround(def);
   if (item.implicit && item.kind === 'tier2tile') materializeTier2(def);
   if (item.kind === 'ground') def.ground.splice(item.index!, 1);
@@ -754,7 +758,7 @@ function addDraft(): void {
   state.docIndex = state.docs.length - 1;
   resetInteraction();
   state.dirty = false;
-  persist();
+  state.dirty = !persist();
   renderAll();
 }
 function cloneDraft(): void {
@@ -765,7 +769,7 @@ function cloneDraft(): void {
   state.docIndex += 1;
   resetInteraction();
   state.dirty = false;
-  persist();
+  state.dirty = !persist();
   renderAll();
 }
 function deleteDraft(): void {
@@ -779,7 +783,7 @@ function deleteDraft(): void {
   }
   resetInteraction();
   state.dirty = false;
-  persist();
+  state.dirty = !persist();
   renderAll();
 }
 function selectDraft(index: number): void {
@@ -891,14 +895,22 @@ function renderInspector(): void {
     const sizeNode = document.createElement('div');
     sizeNode.className = 'hint';
     sizeNode.textContent = `选中：${item.label} · ${size.w} × ${size.h} 格`;
-    const actions = document.createElement('div');
-    actions.className = 'inline-actions';
-    const del = document.createElement('button');
-    del.className = 'danger';
-    del.textContent = '删除';
-    del.addEventListener('click', deleteSelected);
-    actions.append(del);
-    selection.append(sizeNode, actions);
+    selection.append(sizeNode);
+    if (item.kind === 'spawn' || item.kind === 'key' || item.kind === 'door') {
+      const required = document.createElement('div');
+      required.className = 'hint';
+      required.textContent = '必需元素不可删除，可直接移动位置';
+      selection.append(required);
+    } else {
+      const actions = document.createElement('div');
+      actions.className = 'inline-actions';
+      const del = document.createElement('button');
+      del.className = 'danger';
+      del.textContent = '删除';
+      del.addEventListener('click', deleteSelected);
+      actions.append(del);
+      selection.append(actions);
+    }
     card.append(selection);
   }
   el.inspectorBody.append(card);
@@ -990,7 +1002,8 @@ function renderStatus(): void {
 
 function renderHeader(): void {
   el.draftTitle.textContent = `${level().name}${state.dirty ? ' *' : ''}`;
-  el.storageHint.textContent = '本地草稿 · localStorage（不写游戏源码）';
+  el.storageHint.textContent = state.storageError ?? '本地草稿 · 已自动保存（不写游戏源码）';
+  el.storageHint.classList.toggle('storage-error', Boolean(state.storageError));
   el.cancelButton.hidden = !state.pending;
 }
 
@@ -1069,7 +1082,8 @@ function wireEvents(): void {
 
 export function initEditor(): void {
   wireEvents();
-  let docs = loadDocs();
+  const loaded = loadDocs();
+  let docs = loaded.docs;
   if (!docs.length) {
     const lvl = makeDefaultLevel();
     docs = [{ id: newDocId(), name: lvl.name, level: lvl }];
@@ -1077,6 +1091,7 @@ export function initEditor(): void {
   docs.forEach((d) => ensureRigColors(d.level));
   state.docs = docs;
   state.docIndex = 0;
+  state.storageError = loaded.warning ?? null;
   resetInteraction();
   state.dirty = false;
   renderAll();

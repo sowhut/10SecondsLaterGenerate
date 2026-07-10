@@ -25,8 +25,8 @@ import {
   type Tier2Def,
   type PitDef,
   MAX_RIGS,
-} from './levelDef';
-import { COLS, ROWS, TILE_W, GROUND_DROP_ROWS, TIER2_RISE_ROWS, snapHalf } from './grid';
+} from './levelDef.js';
+import { COLS, ROWS, TILE_W, GROUND_DROP_ROWS, TIER2_RISE_ROWS, snapHalf } from './grid.js';
 
 // ---------------------------------------------------------------------------
 // Kind metadata (headless port of app.js TOOLS default sizes + stack sets)
@@ -381,9 +381,12 @@ function labelFor(el: LevelElement): string {
 
 export type ValidationCode =
   | 'missing' // required singleton (spawn/key/door) absent or malformed
+  | 'invalid' // malformed level/object/terrain data
+  | 'invalid-tier' // object references a tier that does not exist
   | 'floating' // object rests on no surface
   | 'overlap' // object overlaps a box/stone body
   | 'out-of-bounds' // object leaves the grid
+  | 'terrain-overlap' // terrain pieces overlap each other
   | 'control-area' // key/door under the bottom-left on-screen controls
   | 'rig-limit'; // more than MAX_RIGS rigs
 
@@ -404,6 +407,101 @@ function isPlacedSingleton(obj: unknown): obj is LevelObj {
   );
 }
 
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value);
+}
+
+interface RawLevelElement {
+  id: string;
+  kind: string;
+  obj: LevelObj;
+  tier: number;
+}
+
+/** Enumerate objects before tier geometry is resolved, so invalid tiers cannot disappear. */
+function rawLevelElements(def: LevelDef): RawLevelElement[] {
+  const out: RawLevelElement[] = [];
+  const add = (id: string, kind: string, obj: LevelObj | undefined, tier: number | undefined): void => {
+    if (obj && tier !== undefined) out.push({ id, kind, obj, tier });
+  };
+
+  add('spawn', 'spawn', def.spawn, def.spawn?.tier);
+  add('key', 'key', def.key, def.key?.tier);
+  add('door', 'door', def.door, def.door?.tier);
+  add('bomb', 'bomb', def.bomb, def.bomb?.tier);
+  (def.boxes ?? []).forEach((o, i) => add(`box:${i}`, 'box', o, o.tier));
+  (def.spikes ?? []).forEach((o, i) => add(`spike:${i}`, 'spike', o, o.tier));
+  (def.walls ?? []).forEach((o, i) => add(`wall:${i}`, 'wall', o, o.tier));
+  (def.stones ?? []).forEach((o, i) => add(`stone:${i}`, 'stone', o, o.tier ?? 1));
+  (def.rigs ?? []).forEach((rig, i) => {
+    add(`rig:${i}:plate`, 'plate', rig.plate, rig.plate?.tier);
+    add(`rig:${i}:lift`, 'lift', rig.lift, rig.lift?.restTier);
+  });
+  return out;
+}
+
+function validateTerrain(def: LevelDef, issues: ValidationIssue[]): void {
+  const validateTiles = (tiles: GroundTileDef[] | undefined, prefix: 'ground' | 'tier2tile'): void => {
+    (tiles ?? []).forEach((tile, index) => {
+      const ref = `${prefix}:${index}`;
+      const w = tile.w ?? TILE_W;
+      if (!isFiniteNumber(tile.col) || !isFiniteNumber(w) || w <= 0) {
+        issues.push({ ref, code: 'invalid', reason: `${prefix === 'ground' ? '地块' : '二层平台'} ${index + 1} 数据无效` });
+      } else if (tile.col < 0 || tile.col + w > COLS) {
+        issues.push({ ref, code: 'out-of-bounds', reason: `${prefix === 'ground' ? '地块' : '二层平台'} ${index + 1} 超出边界` });
+      }
+    });
+
+    for (let i = 0; i < (tiles?.length ?? 0); i += 1) {
+      const a = tiles![i];
+      const aw = a.w ?? TILE_W;
+      if (!isFiniteNumber(a.col) || !isFiniteNumber(aw)) continue;
+      for (let j = i + 1; j < tiles!.length; j += 1) {
+        const b = tiles![j];
+        const bw = b.w ?? TILE_W;
+        if (!isFiniteNumber(b.col) || !isFiniteNumber(bw)) continue;
+        if (overlaps(a.col, a.col + aw, b.col, b.col + bw)) {
+          issues.push({
+            ref: `${prefix}:${j}`,
+            code: 'terrain-overlap',
+            reason: `${prefix === 'ground' ? '地块' : '二层平台'} ${j + 1} 与其它地形重叠`,
+          });
+        }
+      }
+    }
+  };
+
+  validateTiles(def.ground, 'ground');
+  validateTiles(def.tier2Tiles, 'tier2tile');
+
+  (def.ledges ?? []).forEach((ledge, index) => {
+    const ref = `platform:${index}`;
+    if (![ledge.col0, ledge.col1, ledge.row].every(isFiniteNumber) || ledge.col1 < ledge.col0) {
+      issues.push({ ref, code: 'invalid', reason: `平台 ${index + 1} 数据无效` });
+    } else if (ledge.col0 < 0 || ledge.col1 >= COLS || ledge.row < 0 || ledge.row > ROWS) {
+      issues.push({ ref, code: 'out-of-bounds', reason: `平台 ${index + 1} 超出边界` });
+    }
+  });
+  for (let i = 0; i < (def.ledges?.length ?? 0); i += 1) {
+    const a = def.ledges![i];
+    for (let j = i + 1; j < def.ledges!.length; j += 1) {
+      const b = def.ledges![j];
+      if (a.row === b.row && overlaps(a.col0, a.col1 + 1, b.col0, b.col1 + 1)) {
+        issues.push({ ref: `platform:${j}`, code: 'terrain-overlap', reason: `平台 ${j + 1} 与其它地形重叠` });
+      }
+    }
+  }
+
+  (def.pits ?? []).forEach((pit, index) => {
+    const [a, b] = pitSpan(pit);
+    if (![pit.tier, pit.col0, pit.col1, a, b].every(isFiniteNumber) || b <= a) {
+      issues.push({ ref: `pit:${index}`, code: 'invalid', reason: `坑 ${index + 1} 数据无效` });
+    } else if (a < 0 || b > COLS || surfaceRowForTier(def, pit.tier) === null) {
+      issues.push({ ref: `pit:${index}`, code: 'out-of-bounds', reason: `坑 ${index + 1} 超出有效地形` });
+    }
+  });
+}
+
 /**
  * Validate a level: existence of the required singletons, nothing floating, no overlap
  * with box/stone bodies, in-bounds, and rig count. Returns [] when the level is legal.
@@ -412,6 +510,18 @@ function isPlacedSingleton(obj: unknown): obj is LevelObj {
 export function validateLevel(def: LevelDef): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
 
+  if (!isFiniteNumber(def.recordSteps) || def.recordSteps <= 0) {
+    issues.push({ ref: 'level', code: 'invalid', reason: '录制步数必须大于 0' });
+  }
+  if (!isFiniteNumber(def.floorRows) || def.floorRows <= 0 || def.floorRows > ROWS) {
+    issues.push({ ref: 'level', code: 'invalid', reason: '地面高度无效' });
+  }
+  if (!Number.isInteger(def.clones) || def.clones < 0 || def.clones > 2) {
+    issues.push({ ref: 'level', code: 'invalid', reason: '分身数必须是 0–2' });
+  }
+
+  validateTerrain(def, issues);
+
   // Existence of required singletons (untrusted JSON may omit them).
   for (const ref of ['spawn', 'key', 'door'] as const) {
     if (!isPlacedSingleton(def[ref])) {
@@ -419,8 +529,26 @@ export function validateLevel(def: LevelDef): ValidationIssue[] {
     }
   }
 
+  for (const raw of rawLevelElements(def)) {
+    const size = KIND_SIZE[raw.kind] ?? { w: 1, h: 1 };
+    const w = raw.obj.w ?? size.w;
+    const h = raw.obj.h ?? size.h;
+    if (![raw.obj.col, raw.tier, w, h, raw.obj.dy ?? 0].every(isFiniteNumber) || w <= 0 || h <= 0) {
+      issues.push({ ref: raw.id, code: 'invalid', reason: `${KIND_LABEL[raw.kind] ?? raw.kind} 数据无效` });
+      continue;
+    }
+    if (surfaceRowForTier(def, raw.tier) === null) {
+      issues.push({ ref: raw.id, code: 'invalid-tier', reason: `${KIND_LABEL[raw.kind] ?? raw.kind} 所在层级不存在` });
+    }
+  }
+
+  (def.rigs ?? []).forEach((rig, index) => {
+    if (!isFiniteNumber(rig.lift?.topTier) || surfaceRowForTier(def, rig.lift.topTier) === null) {
+      issues.push({ ref: `rig:${index}:lift`, code: 'invalid-tier', reason: `升降台 ${index + 1} 的目标层级不存在` });
+    }
+  });
+
   for (const item of levelElements(def)) {
-    if (item.kind === 'lift') continue; // lift rides its rig; not independently placed
     const label = labelFor(item);
     if (!findPlacementSupport(def, item.kind, item.col, item.w, item.bottomRow, item.id)) {
       issues.push({ ref: item.id, code: 'floating', reason: `${label} 悬空` });
@@ -455,21 +583,45 @@ export function isPlayable(def: LevelDef): boolean {
 }
 
 /**
- * Minimal shape guard, byte-for-byte the game's `PlaytestBridge.isValidDraft` (game repo).
- * Use it before posting a draft into the playtest sandbox.
+ * Defensive public shape guard for stored/imported JSON. It is intentionally stricter than
+ * the game's minimal `PlaytestBridge.isValidDraft`, because malformed nested arrays must not
+ * crash the editor before validation can explain the problem.
  */
 export function isLevelDefShape(def: unknown): def is LevelDef {
   const d = def as LevelDef;
+  const isRecord = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object';
+  const isRecordArray = (value: unknown): boolean => value === undefined || (Array.isArray(value) && value.every(isRecord));
+  const hasPosition = (value: unknown): boolean =>
+    isRecord(value) && isFiniteNumber(value.col) && isFiniteNumber(value.tier);
   return (
-    !!d &&
-    typeof d === 'object' &&
+    isRecord(d) &&
     typeof d.name === 'string' &&
-    typeof d.recordSteps === 'number' &&
-    typeof d.floorRows === 'number' &&
-    typeof d.clones === 'number' &&
+    isFiniteNumber(d.recordSteps) &&
+    isFiniteNumber(d.floorRows) &&
+    isFiniteNumber(d.clones) &&
     Array.isArray(d.rigs) &&
-    !!d.key &&
-    !!d.door &&
-    !!d.spawn
+    d.rigs.every(
+      (rig) =>
+        isRecord(rig) &&
+        isRecord(rig.plate) &&
+        isFiniteNumber(rig.plate.col) &&
+        isFiniteNumber(rig.plate.tier) &&
+        isRecord(rig.lift) &&
+        isFiniteNumber(rig.lift.col) &&
+        isFiniteNumber(rig.lift.restTier) &&
+        isFiniteNumber(rig.lift.topTier),
+    ) &&
+    hasPosition(d.key) &&
+    hasPosition(d.door) &&
+    hasPosition(d.spawn) &&
+    (d.bomb === undefined || hasPosition(d.bomb)) &&
+    isRecordArray(d.ground) &&
+    isRecordArray(d.tier2Tiles) &&
+    isRecordArray(d.ledges) &&
+    isRecordArray(d.stones) &&
+    isRecordArray(d.spikes) &&
+    isRecordArray(d.walls) &&
+    isRecordArray(d.boxes) &&
+    isRecordArray(d.pits)
   );
 }

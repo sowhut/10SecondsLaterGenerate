@@ -3,7 +3,7 @@
  * HANDOFF M2 §3) — drafts live in memory and persist to localStorage. Export/submit is
  * M4; this only owns new/open/clone/delete + persistence.
  */
-import { type LevelDef, THEMES, DOOR_GLOW } from '@10s/schema';
+import { type LevelDef, THEMES, DOOR_GLOW, isLevelDefShape } from '@10s/schema';
 
 export interface LevelDoc {
   id: string;
@@ -12,10 +12,50 @@ export interface LevelDoc {
 }
 
 const STORAGE_KEY = '10s.editor.drafts.v1';
+const RECOVERY_KEY = '10s.editor.drafts.recovery';
 
 interface DraftFile {
   version: 1;
   docs: LevelDoc[];
+}
+
+export interface DraftLoadResult {
+  docs: LevelDoc[];
+  warning?: string;
+}
+
+export interface DraftSaveResult {
+  ok: boolean;
+  error?: string;
+}
+
+type DraftStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
+
+function isLevelDoc(value: unknown): value is LevelDoc {
+  if (!value || typeof value !== 'object') return false;
+  const doc = value as Partial<LevelDoc>;
+  return typeof doc.id === 'string' && typeof doc.name === 'string' && isLevelDefShape(doc.level);
+}
+
+function recoverCorruptDrafts(storage: DraftStorage, raw: string): DraftLoadResult {
+  let backedUp = false;
+  try {
+    storage.setItem(RECOVERY_KEY, raw);
+    backedUp = true;
+  } catch {
+    // Keep the original key intact when a recovery copy cannot be written.
+  }
+  if (backedUp) {
+    try {
+      storage.removeItem(STORAGE_KEY);
+    } catch {
+      // The recovery copy is safe even if the original key cannot be removed.
+    }
+  }
+  return {
+    docs: [],
+    warning: backedUp ? '检测到损坏或旧版本草稿，已隔离并新建空白草稿' : '检测到损坏或旧版本草稿，但无法写入恢复副本',
+  };
 }
 
 /** A blank, immediately-valid level (implicit full ground floor, no rigs yet). */
@@ -37,24 +77,36 @@ export function newDocId(): string {
   return crypto.randomUUID();
 }
 
-/** Read persisted drafts (empty array on first run or any corruption). */
-export function loadDocs(): LevelDoc[] {
+/** Read and validate persisted drafts. Corrupt payloads are isolated for recovery. */
+export function loadDocs(storage: DraftStorage = localStorage): DraftLoadResult {
+  let raw: string | null;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
+    raw = storage.getItem(STORAGE_KEY);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : '未知错误';
+    return { docs: [], warning: `无法读取本地草稿：${message}` };
+  }
+  if (!raw) return { docs: [] };
+
+  try {
     const parsed = JSON.parse(raw) as DraftFile;
-    return Array.isArray(parsed?.docs) ? parsed.docs : [];
+    if (parsed?.version !== 1 || !Array.isArray(parsed.docs) || !parsed.docs.every(isLevelDoc)) {
+      return recoverCorruptDrafts(storage, raw);
+    }
+    return { docs: parsed.docs };
   } catch {
-    return [];
+    return recoverCorruptDrafts(storage, raw);
   }
 }
 
-/** Persist the whole draft set (called on every structural change — autosave). */
-export function saveDocs(docs: LevelDoc[]): void {
+/** Persist the whole draft set and report failures instead of claiming a false autosave. */
+export function saveDocs(docs: LevelDoc[], storage: DraftStorage = localStorage): DraftSaveResult {
   try {
     const payload: DraftFile = { version: 1, docs };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-  } catch {
-    /* storage full / unavailable — keep working in memory */
+    storage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    return { ok: true };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : '未知错误';
+    return { ok: false, error: `本地保存失败：${message}` };
   }
 }

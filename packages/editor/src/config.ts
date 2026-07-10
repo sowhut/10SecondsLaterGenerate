@@ -5,11 +5,13 @@
  * configurable hosted endpoints. For local dev, point VITE_SPRITE_BASE_URL at a
  * running art endpoint (e.g. the private generator's `/sprites`, or a deployed CDN).
  */
+const ENV = import.meta.env ?? {};
+
 export const CONFIG = {
   /** Hosted sprite endpoint. Images load from `${SPRITE_BASE_URL}/<name>.png`. */
-  SPRITE_BASE_URL: import.meta.env.VITE_SPRITE_BASE_URL ?? '/sprites',
+  SPRITE_BASE_URL: ENV.VITE_SPRITE_BASE_URL ?? '/sprites',
   /** Hosted Cocos web build for the M3 playtest sandbox iframe (empty = not wired). */
-  SANDBOX_URL: import.meta.env.VITE_SANDBOX_URL ?? '',
+  SANDBOX_URL: ENV.VITE_SANDBOX_URL ?? '',
   /** Private backend base for M4 submit (empty = local-only, no submission). */
-  API_BASE_URL: import.meta.env.VITE_API_BASE_URL ?? '',
+  API_BASE_URL: ENV.VITE_API_BASE_URL ?? '',
 } as const;

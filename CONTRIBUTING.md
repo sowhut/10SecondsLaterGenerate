@@ -8,7 +8,7 @@ the `LevelDef` schema, the playtest sandbox contract, milestones M0–M6, and ve
 
 ## Prerequisites
 
-- [Node.js](https://nodejs.org) ≥ 18
+- [Node.js](https://nodejs.org) ≥ 18.18
 - [pnpm](https://pnpm.io) ≥ 9 (`corepack enable` will provide it)
 
 ## Getting started

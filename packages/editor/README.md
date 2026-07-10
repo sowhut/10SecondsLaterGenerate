@@ -6,8 +6,9 @@ on top of [`@10s/schema`](../schema). Vite + TypeScript, no framework.
 ## Develop
 
 ```sh
-pnpm --filter @10s/schema build          # editor consumes schema's built dist
-pnpm --filter @10s/editor dev            # http://127.0.0.1:5180
+cp packages/editor/.env.example packages/editor/.env.local
+# Set the hosted sprite and Cocos sandbox URLs in .env.local
+pnpm dev                                 # http://127.0.0.1:5180
 ```
 
 Place / move / delete props on the canvas; validation (floating / out-of-bounds / missing
@@ -19,7 +20,7 @@ Drafts persist to `localStorage` (`10s.editor.drafts.v1`) — refresh-safe.
 | Env var | Default | Purpose |
 |---|---|---|
 | `VITE_SPRITE_BASE_URL` | `/sprites` | hosted art endpoint (`<name>.png`). **No PNGs in this repo.** |
-| `VITE_SANDBOX_URL` | `''` | hosted Cocos web build for the M3 playtest sandbox |
+| `VITE_SANDBOX_URL` | `''` | hosted Cocos web build used by local and hosted editors |
 | `VITE_API_BASE_URL` | `''` | private backend for M4 submit (empty = local-only) |
 
 For local dev with real art, point `VITE_SPRITE_BASE_URL` at a running endpoint, e.g.:
@@ -35,8 +36,8 @@ Without it, sprites gracefully degrade to labeled placeholder boxes.
 - **Never writes the game's `LevelDef.ts`** — output is local drafts (export/submit is M4).
 - **All** support / validation / geometry / constants come from `@10s/schema` — this package
   keeps no copy of that logic.
-- Playtest sandbox (`src/playtestEmbed.ts`) is an M3 stub: the frozen message constants are
-  wired for reuse, but no iframe is mounted yet.
+- Playtest sandbox (`src/playtestEmbed.ts`) mounts the hosted Cocos build, waits for the ready
+  handshake, injects the exact draft, validates message origin/source, and reports failures.
 
 ## Structure
 
@@ -45,5 +46,5 @@ Without it, sprites gracefully degrade to labeled placeholder boxes.
 | `src/config.ts` | env-injected endpoints |
 | `src/drafts.ts` | localStorage draft store + blank-level factory |
 | `src/editor.ts` | canvas render + placement + inspector/validation UI (ported from the private generator) |
-| `src/playtestEmbed.ts` | M3 stub (playtest message constants) |
+| `src/playtestEmbed.ts` | hosted Cocos iframe + playtest handshake/result lifecycle |
 | `src/main.ts` | entry |

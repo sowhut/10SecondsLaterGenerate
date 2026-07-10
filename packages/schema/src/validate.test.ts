@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { validateLevel, isPlayable, isLevelDefShape, type LevelDef } from './index';
+import { validateLevel, isPlayable, isLevelDefShape, type LevelDef } from './index.js';
 
 /** A minimal, known-good level (LEVEL1's shape) that must validate clean. */
 function mkValid(): LevelDef {
@@ -63,4 +63,44 @@ test('isLevelDefShape guards malformed drafts', () => {
   assert.equal(isLevelDefShape(mkValid()), true);
   assert.equal(isLevelDefShape({}), false);
   assert.equal(isLevelDefShape(null), false);
+  assert.equal(isLevelDefShape({ ...mkValid(), rigs: [null] }), false);
+  assert.equal(isLevelDefShape({ ...mkValid(), boxes: [null] }), false);
+});
+
+test('a lift outside the grid is rejected', () => {
+  const def = clone(mkValid());
+  def.rigs[0].lift.col = 100;
+  const issues = validateLevel(def);
+  assert.ok(
+    issues.some((i) => i.ref === 'rig:0:lift' && i.code === 'out-of-bounds'),
+    `expected an out-of-bounds lift, got ${JSON.stringify(issues)}`,
+  );
+});
+
+test('a lift targeting a nonexistent tier is rejected', () => {
+  const def = clone(mkValid());
+  def.rigs[0].lift.topTier = 99;
+  const issues = validateLevel(def);
+  assert.ok(
+    issues.some((i) => i.ref === 'rig:0:lift' && i.code === 'invalid-tier'),
+    `expected an invalid-tier lift, got ${JSON.stringify(issues)}`,
+  );
+});
+
+test('an object on a nonexistent tier is rejected instead of silently disappearing', () => {
+  const def = clone(mkValid());
+  def.key.tier = 99;
+  const issues = validateLevel(def);
+  assert.ok(
+    issues.some((i) => i.ref === 'key' && i.code === 'invalid-tier'),
+    `expected an invalid-tier key, got ${JSON.stringify(issues)}`,
+  );
+});
+
+test('out-of-bounds and overlapping terrain is rejected', () => {
+  const def = clone(mkValid());
+  def.ground = [{ col: -1, w: 3 }, { col: 1, w: 3 }, { col: 2, w: 3 }];
+  const issues = validateLevel(def);
+  assert.ok(issues.some((i) => i.ref === 'ground:0' && i.code === 'out-of-bounds'));
+  assert.ok(issues.some((i) => i.ref === 'ground:2' && i.code === 'terrain-overlap'));
 });

@@ -7,7 +7,7 @@
  * Both the editor and the game must import these consts — never hardcode the strings.
  */
 
-import type { LevelDef } from './levelDef';
+import type { LevelDef } from './levelDef.js';
 
 /** host(editor) → cocos: hand a draft LevelDef into the sandbox to play. */
 export const PLAYTEST_IN = '10s.playtest';
@@ -15,8 +15,7 @@ export const PLAYTEST_IN = '10s.playtest';
 export const PLAYTEST_RESULT = '10s.playtestResult';
 /**
  * cocos → host(editor): sandbox is booted and listening (PLAN §5b-B / §10.1 handshake).
- * The game does not emit this yet; it will be added in the game repo when M3 needs it,
- * so the editor can wait for readiness before posting a draft.
+ * The hosted game sandbox emits this after its message listener is ready.
  */
 export const SANDBOX_READY = '10s.sandboxReady';
 
@@ -34,7 +33,7 @@ export interface PlaytestResultMessage {
   steps?: number; // sim steps to win (60 = 1 s)
 }
 
-/** cocos → host (future handshake). */
+/** cocos → host readiness handshake. */
 export interface SandboxReadyMessage {
   type: typeof SANDBOX_READY;
 }

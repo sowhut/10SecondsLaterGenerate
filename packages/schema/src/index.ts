@@ -6,7 +6,7 @@
  *   playtest  — frozen playtest sandbox message contract
  *   validate  — support/existence/overlap/bounds validation (ported from the generator)
  */
-export * from './levelDef';
-export * from './grid';
-export * from './playtest';
-export * from './validate';
+export * from './levelDef.js';
+export * from './grid.js';
+export * from './playtest.js';
+export * from './validate.js';
