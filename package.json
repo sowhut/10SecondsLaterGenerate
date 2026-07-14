@@ -12,9 +12,9 @@
   },
   "scripts": {
     "build": "pnpm -r --if-present build",
-    "typecheck": "pnpm -r --if-present typecheck",
+    "typecheck": "pnpm --filter @10s/schema build && pnpm -r --if-present typecheck",
     "lint": "eslint . --max-warnings 0",
-    "test": "pnpm -r --if-present test",
+    "test": "pnpm --filter @10s/schema build && pnpm -r --if-present test",
     "dev": "pnpm --filter @10s/schema build && pnpm --filter @10s/editor dev"
   },
   "devDependencies": {
