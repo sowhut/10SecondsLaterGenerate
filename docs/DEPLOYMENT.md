@@ -85,7 +85,7 @@ ssh-keyscan -p 22 -H 你的服务器公网IP
 | Variable | 用途 |
 | --- | --- |
 | `DEPLOY_ENABLED` | 完成服务器和 Secrets 配置后设为 `true`，用于开启生产部署 |
-| `VITE_SPRITE_BASE_URL` | 托管贴图目录，例如 `https://assets.10secslater.com/sprites` |
+| `VITE_SPRITE_BASE_URL` | 托管贴图目录，例如 `https://www.10secslater.com/sprites` |
 | `VITE_SANDBOX_URL` | 托管 Cocos 试玩页，例如 `https://play.10secslater.com/sandbox/` |
 | `VITE_API_BASE_URL` | 投稿后端；尚未实现时留空 |
 
