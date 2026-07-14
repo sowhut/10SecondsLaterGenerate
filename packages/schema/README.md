@@ -33,7 +33,7 @@ pnpm --filter @10s/schema test       # node:test + tsx
 
 The authoritative `LevelDef` lives in the **game's private repo**
 (`assets/scripts/level/LevelDef.ts`). This package mirrors it field-for-field and must be
-kept in sync (PLAN §2.6, §10.4). Likewise:
+kept in sync deliberately. Likewise:
 
 - `SCHEMA_VERSION` must equal the game's `LevelConfig.SCHEMA_VERSION`.
 - `PLAYTEST_IN` / `PLAYTEST_RESULT` must equal the strings in the game's `PlaytestBridge.ts`.

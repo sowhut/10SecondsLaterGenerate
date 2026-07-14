@@ -2,9 +2,8 @@
 
 Thanks for your interest in the **10 Seconds Later** open-source level editor!
 
-This repository is the **public Web editor monorepo**. Before contributing, please read
-[`docs/PLAN.md`](docs/PLAN.md) — it is the single, self-contained execution plan (architecture,
-the `LevelDef` schema, the playtest sandbox contract, milestones M0–M6, and verification).
+This repository is the **public Web editor monorepo**. Keep changes focused on the public
+level format, browser editor, project homepage, examples, or contributor-facing documentation.
 
 ## Prerequisites
 
@@ -29,12 +28,11 @@ with `pnpm -r --if-present`.
 
 | Path | What |
 |---|---|
-| `packages/schema` | `@10s/schema` — `LevelDef` types, validation, playtest & grid contracts (arrives at M1) |
-| `packages/editor` | the public editor front-end — canvas authoring + embedded real-engine playtest + export/submit (M2+) |
-| `examples/` | sample level JSON + format docs (M5) |
-| `docs/` | `PLAN.md` (execution plan) and `LEVEL_FORMAT.md` (community format doc, M5) |
+| `packages/schema` | `@10s/schema` — `LevelDef` types, validation, playtest, and grid contracts |
+| `packages/editor` | project homepage and public editor — canvas authoring + embedded real-engine playtest |
+| `docs/` | deployment and other contributor-facing documentation |
 
-## Open-source boundary (hard rules — see `docs/PLAN.md` §9)
+## Open-source boundary
 
 This repo is public and must stay clean of anything private:
 
@@ -50,11 +48,11 @@ This repo is public and must stay clean of anything private:
 
 The `LevelDef` format's source of truth is the game's private
 `assets/scripts/level/LevelDef.ts`. `packages/schema` is its public mirror — keep them in sync
-(`docs/PLAN.md` §2.6, §10.4). Don't fork the format here.
+with deliberate changes on both sides. Don't fork the format here.
 
 ## Commits & pull requests
 
 - Use [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `chore:`,
   `docs:`, `refactor:`, …), scoped where helpful (e.g. `feat(schema): …`).
-- Keep PRs focused; reference the milestone (M0–M6) they advance.
-- Ensure `pnpm typecheck` and `pnpm build` pass before opening a PR — CI runs them.
+- Keep PRs focused and explain any user-visible behavior changes.
+- Ensure `pnpm lint`, `pnpm typecheck`, `pnpm test`, and `pnpm build` pass before opening a PR.

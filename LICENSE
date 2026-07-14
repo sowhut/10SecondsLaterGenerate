@@ -25,5 +25,5 @@ SOFTWARE.
 NOTE ON GAME ART: This MIT license covers the SOURCE CODE in this repository
 only. The game's art assets (sprites, images) are NOT included in this
 repository and are NOT licensed under MIT. Game art is all-rights-reserved and
-non-commercial; it is fetched at runtime from a hosted endpoint. See
-docs/PLAN.md §9.
+non-commercial; it is fetched at runtime from a hosted endpoint. See the
+"License and assets" section in README.md.
