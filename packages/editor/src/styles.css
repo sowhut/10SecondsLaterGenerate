@@ -89,8 +89,15 @@ header {
 }
 
 .brand {
+  display: inline-block;
+  color: inherit;
   font-size: 18px;
   font-weight: 800;
+  text-decoration: none;
+}
+
+.brand:hover {
+  color: var(--cyan);
 }
 
 .sub,

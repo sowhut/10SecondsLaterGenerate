@@ -1,14 +1,16 @@
 # @10s/editor
 
-The public, browser-based **level editor** for *10 Seconds Later* — Canvas authoring built
-on top of [`@10s/schema`](../schema). Vite + TypeScript, no framework.
+The personal project homepage and public, browser-based **level editor** for
+*10 Seconds Later* — Canvas authoring built on top of [`@10s/schema`](../schema).
+Vite multi-page build + TypeScript, no framework.
 
 ## Develop
 
 ```sh
 cp packages/editor/.env.example packages/editor/.env.local
 # Set the hosted sprite and Cocos sandbox URLs in .env.local
-pnpm dev                                 # http://127.0.0.1:5180
+pnpm dev                                 # homepage: http://127.0.0.1:5180
+                                         # editor:   http://127.0.0.1:5180/editor/
 ```
 
 Place / move / delete props on the canvas; validation (floating / out-of-bounds / missing
@@ -31,9 +33,9 @@ VITE_SPRITE_BASE_URL=http://127.0.0.1:5179/sprites pnpm --filter @10s/editor dev
 
 Without it, sprites gracefully degrade to labeled placeholder boxes.
 
-## Boundaries (see docs/PLAN.md, docs/HANDOFF.md)
+## Boundaries
 
-- **Never writes the game's `LevelDef.ts`** — output is local drafts (export/submit is M4).
+- **Never writes the game's `LevelDef.ts`** — output is local drafts; export/submit is future work.
 - **All** support / validation / geometry / constants come from `@10s/schema` — this package
   keeps no copy of that logic.
 - Playtest sandbox (`src/playtestEmbed.ts`) mounts the hosted Cocos build, waits for the ready
@@ -43,8 +45,10 @@ Without it, sprites gracefully degrade to labeled placeholder boxes.
 
 | File | Role |
 |---|---|
+| `index.html` / `src/home.css` | personal project homepage at `/` |
+| `editor/index.html` | editor HTML entry at `/editor/` |
 | `src/config.ts` | env-injected endpoints |
 | `src/drafts.ts` | localStorage draft store + blank-level factory |
 | `src/editor.ts` | canvas render + placement + inspector/validation UI (ported from the private generator) |
 | `src/playtestEmbed.ts` | hosted Cocos iframe + playtest handshake/result lifecycle |
-| `src/main.ts` | entry |
+| `src/main.ts` | editor TypeScript entry |

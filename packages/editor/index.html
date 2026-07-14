@@ -3,62 +3,106 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>10 Seconds Later · 关卡编辑器</title>
+    <meta
+      name="description"
+      content="《十秒之后》个人独立游戏项目主页：了解项目，并进入开源关卡编辑器。"
+    />
+    <meta name="theme-color" content="#080b18" />
+    <title>十秒之后 · 个人独立游戏实验</title>
+    <link rel="stylesheet" href="/src/home.css" />
   </head>
   <body>
-    <div id="app">
-      <aside class="sidebar">
-        <header>
-          <div class="brand">10 Seconds Later</div>
-          <div class="sub">关卡编辑器</div>
-        </header>
-        <section>
-          <h2>添加</h2>
-          <div id="toolList" class="tool-list"></div>
-        </section>
-      </aside>
+    <a class="skip-link" href="#main">跳到主要内容</a>
 
-      <main class="stage-panel">
-        <div class="topbar">
+    <div class="page-shell">
+      <header class="site-header">
+        <a class="wordmark" href="/" aria-label="十秒之后首页">
+          <span class="wordmark-dot" aria-hidden="true"></span>
+          <span>10 SECONDS LATER</span>
+        </a>
+        <a
+          class="github-link"
+          href="https://github.com/sowhut/10SecondsLaterGenerate"
+          target="_blank"
+          rel="noreferrer"
+        >
+          GitHub
+          <span aria-hidden="true">↗</span>
+        </a>
+      </header>
+
+      <main id="main">
+        <section class="hero" aria-labelledby="hero-title">
+          <div class="hero-copy">
+            <p class="eyebrow"><span aria-hidden="true"></span>个人独立游戏实验 · 持续制作中</p>
+            <h1 id="hero-title">
+              十秒之后，
+              <span>再和过去的自己见面。</span>
+            </h1>
+            <p class="intro">
+              这是一个关于时间回放与协作解谜的个人项目。记录十秒，留下一个分身，
+              再用下一次行动与曾经的自己一起找到出口。
+            </p>
+            <div class="hero-actions">
+              <a class="primary-action" href="/editor/">
+                进入关卡编辑器
+                <span aria-hidden="true">→</span>
+              </a>
+              <a
+                class="secondary-action"
+                href="https://github.com/sowhut/10SecondsLaterGenerate"
+                target="_blank"
+                rel="noreferrer"
+              >
+                查看开源项目
+              </a>
+            </div>
+            <p class="editor-note">编辑器仍在开发中，草稿仅保存在当前浏览器。</p>
+          </div>
+
+          <div
+            class="scene-frame"
+            role="img"
+            aria-label="角色与过去的分身在十秒循环中共同前进的抽象场景"
+          >
+            <div class="scene-grid" aria-hidden="true"></div>
+            <div class="orbit orbit-one" aria-hidden="true"></div>
+            <div class="orbit orbit-two" aria-hidden="true"></div>
+            <div class="time-mark" aria-hidden="true">
+              <strong>10</strong>
+              <span>SECONDS</span>
+            </div>
+            <div class="door" aria-hidden="true"><span></span></div>
+            <div class="platform platform-high" aria-hidden="true"></div>
+            <div class="platform platform-low" aria-hidden="true"></div>
+            <div class="traveler traveler-past" aria-hidden="true"><i></i></div>
+            <div class="traveler traveler-now" aria-hidden="true"><i></i></div>
+            <div class="scene-caption" aria-hidden="true">
+              <span>00:00</span>
+              <span class="timeline"><i></i></span>
+              <span>00:10</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="project-note" aria-labelledby="project-note-title">
           <div>
-            <div id="draftTitle" class="title">加载中</div>
-            <div id="storageHint" class="path"></div>
+            <p class="section-index">PROJECT NOTE / 001</p>
+            <h2 id="project-note-title">一个慢慢长出来的个人世界</h2>
           </div>
-          <div class="actions">
-            <button id="cancelButton" type="button" hidden>取消放置</button>
-            <button id="playtestButton" type="button" disabled>试玩</button>
-          </div>
-        </div>
-        <div class="canvas-wrap">
-          <canvas id="scene" width="1280" height="720"></canvas>
-        </div>
-        <div class="statusbar">
-          <span id="pointerReadout">col -, row -</span>
-          <span id="selectionSize">未选中</span>
-          <span>画布：50 × 26</span>
-        </div>
+          <p>
+            目前开放的是浏览器关卡编辑器：你可以搭建场景、保存本地草稿，
+            并随着项目后续迭代逐步体验完整的关卡试玩与分享流程。
+          </p>
+        </section>
       </main>
 
-      <aside class="inspector">
-        <section>
-          <h2>草稿（本地）</h2>
-          <select id="draftSelect" class="level-select"></select>
-          <div class="level-actions">
-            <button id="addDraftButton" type="button">＋ 新建空白</button>
-            <button id="cloneDraftButton" type="button">⧉ 克隆</button>
-            <button id="deleteDraftButton" type="button" class="danger">－ 删除</button>
-          </div>
-        </section>
-        <section>
-          <h2>关卡详情</h2>
-          <div id="inspectorBody" class="inspector-body"></div>
-        </section>
-        <section>
-          <h2>校验</h2>
-          <div id="validationList" class="validation-list"></div>
-        </section>
-      </aside>
+      <footer class="site-footer">
+        <span>© 2026 10 Seconds Later · 个人项目</span>
+        <a href="https://beian.miit.gov.cn/" target="_blank" rel="noreferrer">
+          京ICP备2025111566号
+        </a>
+      </footer>
     </div>
-    <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

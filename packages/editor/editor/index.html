@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#050817" />
+    <title>十秒之后 · 关卡编辑器</title>
+  </head>
+  <body>
+    <div id="app">
+      <aside class="sidebar">
+        <header>
+          <a class="brand" href="/">10 Seconds Later</a>
+          <div class="sub">关卡编辑器</div>
+        </header>
+        <section>
+          <h2>添加</h2>
+          <div id="toolList" class="tool-list"></div>
+        </section>
+      </aside>
+
+      <main class="stage-panel">
+        <div class="topbar">
+          <div>
+            <div id="draftTitle" class="title">加载中</div>
+            <div id="storageHint" class="path"></div>
+          </div>
+          <div class="actions">
+            <button id="cancelButton" type="button" hidden>取消放置</button>
+            <button id="playtestButton" type="button" disabled>试玩</button>
+          </div>
+        </div>
+        <div class="canvas-wrap">
+          <canvas id="scene" width="1280" height="720"></canvas>
+        </div>
+        <div class="statusbar">
+          <span id="pointerReadout">col -, row -</span>
+          <span id="selectionSize">未选中</span>
+          <span>画布：50 × 26</span>
+        </div>
+      </main>
+
+      <aside class="inspector">
+        <section>
+          <h2>草稿（本地）</h2>
+          <select id="draftSelect" class="level-select"></select>
+          <div class="level-actions">
+            <button id="addDraftButton" type="button">＋ 新建空白</button>
+            <button id="cloneDraftButton" type="button">⧉ 克隆</button>
+            <button id="deleteDraftButton" type="button" class="danger">－ 删除</button>
+          </div>
+        </section>
+        <section>
+          <h2>关卡详情</h2>
+          <div id="inspectorBody" class="inspector-body"></div>
+        </section>
+        <section>
+          <h2>校验</h2>
+          <div id="validationList" class="validation-list"></div>
+        </section>
+      </aside>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
