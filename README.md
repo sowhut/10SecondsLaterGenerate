@@ -1,7 +1,10 @@
 # 10 Seconds Later — Level Editor
 
-Open-source, browser-based level editor for *10 Seconds Later（10 秒之后）*:
+Personal project homepage and open-source, browser-based level editor for
+*10 Seconds Later（10 秒之后）*:
 build a level → playtest it in the real Cocos engine → beat it yourself → export / submit.
+
+Project website: [10secslater.com](https://10secslater.com/)
 
 The editor can run **locally or as a hosted website**. Both modes embed the same Cocos
 playtest sandbox deployed by the game team, so GitHub users do not need the private game
@@ -16,9 +19,7 @@ source in order to playtest their drafts.
 - **M0–M2 complete:** monorepo, schema/validation package, Canvas editor, local drafts.
 - **M3 editor side complete:** embedded real-engine playtest via a strict `postMessage`
   handshake. A compatible hosted Cocos sandbox is required for end-to-end playtesting.
-- **M4–M6 planned:** JSON export/import and submissions, examples/format guide, public release.
-
-See [`docs/PLAN.md`](docs/PLAN.md) for architecture and milestones.
+- **Next:** JSON export/import, submissions, examples, and the public level-format guide.
 
 ## Run the editor locally
 
@@ -31,9 +32,17 @@ cp packages/editor/.env.example packages/editor/.env.local
 pnpm dev
 ```
 
-Open `http://127.0.0.1:5180`. Without a sprite endpoint the editor uses labeled
+Open `http://127.0.0.1:5180` for the project homepage, then enter the editor at
+`http://127.0.0.1:5180/editor/`. Without a sprite endpoint the editor uses labeled
 placeholders. Without a valid sandbox endpoint authoring still works, but the Playtest button
 is disabled.
+
+## Deployment
+
+The Vite build produces both `/` (personal project homepage) and `/editor/` (editor).
+GitHub Actions runs lint, type-checks, tests, and builds every change; pushes to `main`
+can then deploy the static output to the Tencent Cloud Nginx host over SSH. See
+[`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) for the one-time server and GitHub setup.
 
 ## Hosted sandbox model
 
