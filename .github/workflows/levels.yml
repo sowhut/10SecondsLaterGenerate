@@ -1,20 +1,22 @@
-name: CI/CD
+name: Production Levels
 
 on:
   push:
-    branches: [main]
+    branches: [levels]
   pull_request:
+    branches: [levels]
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-cd-${{ github.ref }}
-  cancel-in-progress: true
+  group: production-levels
+  cancel-in-progress: false
 
 jobs:
-  check:
+  validate:
+    name: Validate production levels
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -32,41 +34,28 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Lint
-        run: pnpm lint
-
-      - name: Type-check
-        run: pnpm typecheck
-
       - name: Check generated public JSON Schema
         run: pnpm schema:check
 
-      - name: Test
-        run: pnpm test
+      - name: Validate and package production levels
+        run: pnpm levels:release
 
-      - name: Build
-        run: pnpm build
-        env:
-          VITE_SPRITE_BASE_URL: ${{ vars.VITE_SPRITE_BASE_URL }}
-          VITE_SANDBOX_URL: ${{ vars.VITE_SANDBOX_URL }}
-          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
-
-      - name: Package static site
-        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+      - name: Upload immutable level release
+        if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
         with:
-          name: static-site
-          path: packages/editor/dist
+          name: production-levels
+          path: dist/levels
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 30
 
   deploy:
-    name: Deploy to Tencent Cloud
+    name: Deploy production levels
     if: >-
-      github.ref == 'refs/heads/main' &&
+      github.ref == 'refs/heads/levels' &&
       github.event_name != 'pull_request' &&
-      vars.DEPLOY_ENABLED == 'true'
-    needs: check
+      vars.DEPLOY_LEVELS_ENABLED == 'true'
+    needs: validate
     runs-on: ubuntu-latest
     environment: production
     env:
@@ -75,13 +64,13 @@ jobs:
       DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
       DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
       DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
-      DEPLOY_PATH: /var/www/10secslater.com
+      DEPLOY_PATH: /var/www/10secslater-levels
     steps:
-      - name: Download static site
+      - name: Download production levels
         uses: actions/download-artifact@v4
         with:
-          name: static-site
-          path: dist
+          name: production-levels
+          path: dist/levels
 
       - name: Configure SSH
         shell: bash
@@ -96,19 +85,22 @@ jobs:
           printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
 
-      - name: Publish static files
+      - name: Upload bodies, then atomically switch manifest
         shell: bash
         run: |
           set -euo pipefail
           port="${DEPLOY_PORT:-22}"
-          ssh -p "$port" "$DEPLOY_USER@$DEPLOY_HOST" "mkdir -p '$DEPLOY_PATH'"
-          rsync -az --delete --delay-updates \
+          remote="$DEPLOY_USER@$DEPLOY_HOST"
+          ssh -p "$port" "$remote" "mkdir -p '$DEPLOY_PATH'"
+          rsync -az --exclude manifest.json --delay-updates \
             -e "ssh -p $port" \
-            dist/ "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/"
+            dist/levels/ "$remote:$DEPLOY_PATH/"
+          scp -P "$port" dist/levels/manifest.json "$remote:$DEPLOY_PATH/manifest.json.next"
+          ssh -p "$port" "$remote" \
+            "mv '$DEPLOY_PATH/manifest.json.next' '$DEPLOY_PATH/manifest.json'"
 
-      - name: Verify production routes
+      - name: Verify production manifest
         run: |
-          curl --fail --silent --show-error --retry 5 --retry-all-errors https://10secslater.com/ \
-            | grep -F '个人独立游戏实验'
-          curl --fail --silent --show-error --retry 5 --retry-all-errors https://10secslater.com/editor/ \
-            | grep -F '关卡编辑器'
+          curl --fail --silent --show-error --retry 5 --retry-all-errors \
+            "https://www.10secslater.com/levels/manifest.json?t=${GITHUB_RUN_ID}" \
+            | grep -F '"releaseId"'

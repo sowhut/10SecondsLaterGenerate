@@ -31,6 +31,7 @@ with `pnpm -r --if-present`.
 | `packages/schema` | `@10s/schema` — `LevelDef` types, validation, playtest, and grid contracts |
 | `packages/editor` | project homepage and public editor — canvas authoring + embedded real-engine playtest |
 | `docs/` | deployment and other contributor-facing documentation |
+| `tools/levels.mjs` | official-level validation/adoption/release tool used by `levels` |
 
 ## Open-source boundary
 
@@ -39,16 +40,20 @@ This repo is public and must stay clean of anything private:
 - **Never commit game art** (PNG/JPG/etc.). Sprites are fetched at runtime from a hosted endpoint;
   `.gitignore` blocks image files as a guard.
 - **Never commit secrets** — no OAuth client secrets, DB credentials, `.env` values, or tokens.
-- **No engine source or full commercial levels.** The game engine and art live in a separate private
-  repo; only the level *format*, a few teaching *examples*, and the *editor front-end* are public.
+- **No engine source or unreleased official levels.** The game engine and art live separately.
+  Released official JSON is intentionally public on the protected `levels` branch; drafts must
+  remain under `.private/` until publication.
 - Backend account / submission / moderation / anti-cheat logic lives in a **private backend repo**;
   this editor only sees the public API contract.
 
-## Schema is mirrored, not owned
+## Schema is the public format contract
 
-The `LevelDef` format's source of truth is the game's private
-`assets/scripts/level/LevelDef.ts`. `packages/schema` is its public mirror — keep them in sync
-with deliberate changes on both sides. Don't fork the format here.
+`packages/schema/src/levelDef.ts` is the source of truth for the public `LevelDef` format.
+`level.schema.json` is generated from it for non-TypeScript tools. The game vendors the built
+types/validator; the protected `levels` branch consumes the same package for production checks.
+
+After changing `LevelDef`, run `pnpm --filter @10s/schema schema:json`, update tests, and coordinate
+the matching engine/schema version change before any production level uses the new field.
 
 ## Commits & pull requests
 

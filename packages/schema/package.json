@@ -11,17 +11,26 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
-    }
+    },
+    "./level.schema.json": "./level.schema.json"
   },
-  "files": ["dist", "src", "!src/**/*.test.ts"],
+  "files": [
+    "dist",
+    "src",
+    "level.schema.json",
+    "!src/**/*.test.ts"
+  ],
   "sideEffects": false,
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
+    "schema:json": "ts-json-schema-generator --path src/levelDef.ts --type LevelDef --tsconfig tsconfig.json --no-top-ref --out level.schema.json",
+    "schema:check": "pnpm schema:json && git diff --exit-code -- level.schema.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "node --import tsx --test src/*.test.ts"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
+    "ts-json-schema-generator": "^2.4.0",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2"
   }

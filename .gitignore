@@ -11,6 +11,7 @@ build/
 .env.*
 !.env.example
 *.local
+.private/
 
 # Editor / OS
 .DS_Store
