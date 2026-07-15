@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "levels": {
+    "L01": {
+      "sha256": "ff981b26fca559ffe4af1ee0d859a618834659f131e173339f1ab2ef733104da",
+      "approvedAt": "2026-07-15T00:00:00.000Z",
+      "note": "Migrated unchanged from the existing bundled production baseline; migration itself did not replay the level"
+    },
+    "L02": {
+      "sha256": "a02be72712fa71d6d7a9b1a49de6e16eec88e02a6962d66db74e4e33a0123c0c",
+      "approvedAt": "2026-07-15T00:00:00.000Z",
+      "note": "Migrated unchanged from the existing bundled production baseline; migration itself did not replay the level"
+    },
+    "L03": {
+      "sha256": "73a2ef8be2bc2e7dc407fac3e2355c6e081b8a7d141ec136409e6d30c041d024",
+      "approvedAt": "2026-07-15T00:00:00.000Z",
+      "note": "Migrated unchanged from the existing bundled production baseline; migration itself did not replay the level"
+    },
+    "L04": {
+      "sha256": "af9dd25ea6fba3b984ee524718fc381526f2ada427bd257a9cf77522e6522a81",
+      "approvedAt": "2026-07-15T00:00:00.000Z",
+      "note": "Migrated unchanged from the existing bundled production baseline; migration itself did not replay the level"
+    },
+    "L05": {
+      "sha256": "60188236a42646b8e3b8e07c16767932e908d3295c1863ad5c55191cb82e4460",
+      "approvedAt": "2026-07-15T00:00:00.000Z",
+      "note": "Migrated unchanged from the existing bundled production baseline; migration itself did not replay the level"
+    },
+    "L06": {
+      "sha256": "6b84514e7ee528286261541ed969c8d6dbc19318ccbce165c7a6545298a66ba9",
+      "approvedAt": "2026-07-15T00:00:00.000Z",
+      "note": "Migrated unchanged from the existing bundled production baseline; migration itself did not replay the level"
+    },
+    "L07": {
+      "sha256": "2f1d890f9ac1829ed7563d9ccd574690f306506df2a150428dcb9708ac558f7e",
+      "approvedAt": "2026-07-15T00:00:00.000Z",
+      "note": "Migrated unchanged from the existing bundled production baseline; migration itself did not replay the level"
+    }
+  }
+}

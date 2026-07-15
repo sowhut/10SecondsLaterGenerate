@@ -1,0 +1,76 @@
+{
+  "name": "货梯",
+  "recordSteps": 600,
+  "floorRows": 3,
+  "theme": {
+    "void": "#090720",
+    "upper": "#140E34",
+    "lower": "#1E1640"
+  },
+  "tier2Tiles": [
+    {
+      "col": 33
+    },
+    {
+      "col": 36
+    },
+    {
+      "col": 39
+    }
+  ],
+  "ledges": [
+    {
+      "col0": 38,
+      "col1": 40,
+      "row": 10.2
+    },
+    {
+      "col0": 41,
+      "col1": 43,
+      "row": 10.2
+    }
+  ],
+  "rigs": [
+    {
+      "plate": {
+        "col": 22,
+        "w": 2,
+        "tier": 1
+      },
+      "lift": {
+        "col": 30,
+        "w": 3,
+        "restTier": 1,
+        "topTier": 2
+      },
+      "color": "#46E5F2"
+    }
+  ],
+  "boxes": [
+    {
+      "tier": 1,
+      "col": 27
+    }
+  ],
+  "key": {
+    "col": 39.5,
+    "tier": 3,
+    "w": 1,
+    "h": 2
+  },
+  "door": {
+    "col": 42,
+    "tier": 3,
+    "w": 2,
+    "h": 3,
+    "glow": [
+      "#C265FF",
+      22
+    ]
+  },
+  "clones": 1,
+  "spawn": {
+    "col": 20,
+    "tier": 1
+  }
+}

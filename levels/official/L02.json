@@ -1,0 +1,101 @@
+{
+  "name": "机关重重",
+  "recordSteps": 600,
+  "floorRows": 3,
+  "theme": {
+    "void": "#08071A",
+    "upper": "#160F30",
+    "lower": "#221638"
+  },
+  "tier2Tiles": [
+    {
+      "col": 4,
+      "w": 3
+    },
+    {
+      "col": 7,
+      "w": 3
+    },
+    {
+      "col": 10,
+      "w": 3
+    },
+    {
+      "col": 13,
+      "w": 3
+    },
+    {
+      "col": 16,
+      "w": 3
+    },
+    {
+      "col": 19,
+      "w": 3
+    }
+  ],
+  "rigs": [
+    {
+      "plate": {
+        "col": 43.5,
+        "w": 2,
+        "tier": 1
+      },
+      "lift": {
+        "col": 22,
+        "w": 3,
+        "restTier": 1,
+        "topTier": 2
+      },
+      "color": "#46E5F2"
+    }
+  ],
+  "bomb": {
+    "col": 30.5,
+    "tier": 1,
+    "dy": 2
+  },
+  "walls": [
+    {
+      "tier": 1,
+      "col": 36.5,
+      "w": 3,
+      "h": 3
+    }
+  ],
+  "boxes": [],
+  "stones": [
+    {
+      "tier": 1,
+      "col": 30.5,
+      "w": 2
+    }
+  ],
+  "spikes": [
+    {
+      "tier": 2,
+      "col": 12,
+      "w": 2
+    }
+  ],
+  "key": {
+    "col": 18,
+    "tier": 2,
+    "w": 1,
+    "h": 2
+  },
+  "door": {
+    "col": 6,
+    "tier": 2,
+    "w": 2,
+    "h": 3,
+    "glow": [
+      "#C265FF",
+      22
+    ]
+  },
+  "clones": 1,
+  "spawn": {
+    "col": 26.5,
+    "tier": 1
+  }
+}

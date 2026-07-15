@@ -1,0 +1,67 @@
+{
+  "name": "初次同行",
+  "recordSteps": 600,
+  "floorRows": 3,
+  "theme": {
+    "void": "#050817",
+    "upper": "#0D1028",
+    "lower": "#17132F"
+  },
+  "tier2Tiles": [
+    {
+      "col": 27
+    },
+    {
+      "col": 30
+    },
+    {
+      "col": 33
+    },
+    {
+      "col": 36
+    },
+    {
+      "col": 39
+    },
+    {
+      "col": 42
+    }
+  ],
+  "rigs": [
+    {
+      "plate": {
+        "col": 7.5,
+        "w": 2,
+        "tier": 1
+      },
+      "lift": {
+        "col": 23.5,
+        "w": 3,
+        "restTier": 1,
+        "topTier": 2
+      },
+      "color": "#46E5F2"
+    }
+  ],
+  "key": {
+    "col": 30.5,
+    "tier": 2,
+    "w": 1,
+    "h": 2
+  },
+  "door": {
+    "col": 39.5,
+    "tier": 2,
+    "w": 2,
+    "h": 3,
+    "glow": [
+      "#C265FF",
+      22
+    ]
+  },
+  "clones": 1,
+  "spawn": {
+    "col": 19,
+    "tier": 1
+  }
+}

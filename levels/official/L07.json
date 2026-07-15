@@ -1,0 +1,116 @@
+{
+  "name": "时机",
+  "recordSteps": 600,
+  "floorRows": 3,
+  "theme": {
+    "void": "#070A16",
+    "upper": "#10182E",
+    "lower": "#1A2440"
+  },
+  "tier2Tiles": [],
+  "ledges": [
+    {
+      "col0": 13.5,
+      "col1": 15.5,
+      "row": 17
+    },
+    {
+      "col0": 16.5,
+      "col1": 18.5,
+      "row": 12
+    },
+    {
+      "col0": 39.5,
+      "col1": 41.5,
+      "row": 7
+    },
+    {
+      "col0": 34.5,
+      "col1": 36.5,
+      "row": 7
+    },
+    {
+      "col0": 31.5,
+      "col1": 33.5,
+      "row": 7
+    },
+    {
+      "col0": 28.5,
+      "col1": 30.5,
+      "row": 7
+    },
+    {
+      "col0": 25.5,
+      "col1": 27.5,
+      "row": 7
+    },
+    {
+      "col0": 22.5,
+      "col1": 24.5,
+      "row": 7
+    },
+    {
+      "col0": 19.5,
+      "col1": 21.5,
+      "row": 7
+    }
+  ],
+  "rigs": [
+    {
+      "plate": {
+        "col": 10.5,
+        "w": 2,
+        "tier": 1
+      },
+      "lift": {
+        "col": 19.5,
+        "w": 3,
+        "restTier": 5,
+        "topTier": 4
+      },
+      "color": "#46E5F2"
+    },
+    {
+      "plate": {
+        "col": 37.5,
+        "w": 2,
+        "tier": 1
+      },
+      "lift": {
+        "col": 16.5,
+        "w": 3,
+        "restTier": 4,
+        "topTier": 3
+      },
+      "color": "#FFB23E"
+    }
+  ],
+  "boxes": [
+    {
+      "tier": 5,
+      "col": 30
+    }
+  ],
+  "spikes": [],
+  "key": {
+    "col": 40.5,
+    "tier": 5,
+    "w": 1,
+    "h": 2
+  },
+  "door": {
+    "col": 14,
+    "tier": 3,
+    "w": 2,
+    "h": 3,
+    "glow": [
+      "#C265FF",
+      22
+    ]
+  },
+  "clones": 2,
+  "spawn": {
+    "col": 25.5,
+    "tier": 5
+  }
+}
