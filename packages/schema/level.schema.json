@@ -1,0 +1,478 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "definitions": {
+    "BombDef": {
+      "additionalProperties": false,
+      "description": "A carryable bomb (2×2) resting on a tier.",
+      "properties": {
+        "col": {
+          "type": "number"
+        },
+        "dy": {
+          "type": "number"
+        },
+        "tier": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "col",
+        "tier"
+      ],
+      "type": "object"
+    },
+    "BoxDef": {
+      "additionalProperties": false,
+      "description": "A pushable crate (2 wide × `h` tall, default 2) resting on a tier.",
+      "properties": {
+        "col": {
+          "type": "number"
+        },
+        "dy": {
+          "type": "number"
+        },
+        "h": {
+          "type": "number"
+        },
+        "tier": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "col",
+        "tier"
+      ],
+      "type": "object"
+    },
+    "DoorDef": {
+      "additionalProperties": false,
+      "properties": {
+        "col": {
+          "type": "number"
+        },
+        "dy": {
+          "type": "number"
+        },
+        "glow": {
+          "items": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "maxItems": 2,
+          "minItems": 2,
+          "type": "array"
+        },
+        "h": {
+          "type": "number"
+        },
+        "tier": {
+          "type": "number"
+        },
+        "w": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "col",
+        "tier",
+        "w",
+        "h"
+      ],
+      "type": "object"
+    },
+    "GroundTileDef": {
+      "additionalProperties": false,
+      "description": "Explicit 3-cell ground tile. Missing `ground` keeps the legacy full floor.",
+      "properties": {
+        "col": {
+          "type": "number"
+        },
+        "w": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "col"
+      ],
+      "type": "object"
+    },
+    "KeyDef": {
+      "additionalProperties": false,
+      "properties": {
+        "col": {
+          "type": "number"
+        },
+        "dy": {
+          "type": "number"
+        },
+        "h": {
+          "type": "number"
+        },
+        "tier": {
+          "type": "number"
+        },
+        "w": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "col",
+        "tier"
+      ],
+      "type": "object"
+    },
+    "LedgeDef": {
+      "additionalProperties": false,
+      "properties": {
+        "col0": {
+          "type": "number"
+        },
+        "col1": {
+          "type": "number"
+        },
+        "row": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "col0",
+        "col1",
+        "row"
+      ],
+      "type": "object"
+    },
+    "PitDef": {
+      "additionalProperties": false,
+      "description": "A gap carved out of a tier's surface — a real hole, not a death-band. Use `cells` for a FRACTIONAL width from col0 on non-ground tiers; ground pits stay block-aligned via col0/col1.",
+      "properties": {
+        "cells": {
+          "type": "number"
+        },
+        "col0": {
+          "type": "number"
+        },
+        "col1": {
+          "type": "number"
+        },
+        "tier": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "tier",
+        "col0",
+        "col1"
+      ],
+      "type": "object"
+    },
+    "RigDef": {
+      "additionalProperties": false,
+      "properties": {
+        "color": {
+          "type": "string"
+        },
+        "lift": {
+          "additionalProperties": false,
+          "properties": {
+            "col": {
+              "type": "number"
+            },
+            "restTier": {
+              "type": "number"
+            },
+            "topTier": {
+              "type": "number"
+            },
+            "w": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "col",
+            "w",
+            "restTier",
+            "topTier"
+          ],
+          "type": "object"
+        },
+        "plate": {
+          "additionalProperties": false,
+          "properties": {
+            "col": {
+              "type": "number"
+            },
+            "tier": {
+              "type": "number"
+            },
+            "w": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "col",
+            "w",
+            "tier"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "plate",
+        "lift",
+        "color"
+      ],
+      "type": "object"
+    },
+    "SpawnDef": {
+      "additionalProperties": false,
+      "description": "LevelDef — the public level-format schema for 10 Seconds Later.\n\nPUBLIC FORMAT SOURCE OF TRUTH. Released official JSON lives on this repo's protected `levels` branch. `level.schema.json` is generated from this interface; both production publishing and the game client consume the generated contract.\n\nRuntime engine changes that add fields must update this contract and bump the relevant schema/engine version before production level data can use them.",
+      "properties": {
+        "col": {
+          "type": "number"
+        },
+        "h": {
+          "type": "number"
+        },
+        "tier": {
+          "type": "number"
+        },
+        "w": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "col",
+        "tier"
+      ],
+      "type": "object"
+    },
+    "SpikeDef": {
+      "additionalProperties": false,
+      "description": "Lethal spike strip: blocks walking, kills a too-low airborne pass.",
+      "properties": {
+        "col": {
+          "type": "number"
+        },
+        "dy": {
+          "type": "number"
+        },
+        "tier": {
+          "type": "number"
+        },
+        "w": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "col",
+        "w",
+        "tier"
+      ],
+      "type": "object"
+    },
+    "StoneDef": {
+      "additionalProperties": false,
+      "description": "Climbable 2-cell ground block (stand on top, soft side-block).",
+      "properties": {
+        "col": {
+          "type": "number"
+        },
+        "dy": {
+          "type": "number"
+        },
+        "tier": {
+          "type": "number"
+        },
+        "w": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "col",
+        "w"
+      ],
+      "type": "object"
+    },
+    "ThemeDef": {
+      "additionalProperties": false,
+      "description": "Per-level background palette (cheap visual differentiation between levels).",
+      "properties": {
+        "lower": {
+          "type": "string"
+        },
+        "upper": {
+          "type": "string"
+        },
+        "void": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "void",
+        "upper",
+        "lower"
+      ],
+      "type": "object"
+    },
+    "Tier2Def": {
+      "additionalProperties": false,
+      "properties": {
+        "col0": {
+          "type": "number"
+        },
+        "col1": {
+          "type": "number"
+        },
+        "gapCol0": {
+          "type": "number"
+        },
+        "gapCol1": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "col0",
+        "col1"
+      ],
+      "type": "object"
+    },
+    "WallDef": {
+      "additionalProperties": false,
+      "description": "Breakable hard wall (removed by a bomb in range).",
+      "properties": {
+        "col": {
+          "type": "number"
+        },
+        "h": {
+          "type": "number"
+        },
+        "tier": {
+          "type": "number"
+        },
+        "w": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "col",
+        "w",
+        "h",
+        "tier"
+      ],
+      "type": "object"
+    }
+  },
+  "properties": {
+    "bomb": {
+      "$ref": "#/definitions/BombDef"
+    },
+    "boxes": {
+      "items": {
+        "$ref": "#/definitions/BoxDef"
+      },
+      "type": "array"
+    },
+    "clones": {
+      "description": "How many clones to record before the 真身 run (total actors = clones + 1).",
+      "type": "number"
+    },
+    "comingSoon": {
+      "description": "Placeholder slot: shows on the menu (\"敬请期待\") but is not playable.",
+      "type": "boolean"
+    },
+    "door": {
+      "$ref": "#/definitions/DoorDef"
+    },
+    "floorRows": {
+      "type": "number"
+    },
+    "ground": {
+      "items": {
+        "$ref": "#/definitions/GroundTileDef"
+      },
+      "type": "array"
+    },
+    "key": {
+      "$ref": "#/definitions/KeyDef"
+    },
+    "ledges": {
+      "items": {
+        "$ref": "#/definitions/LedgeDef"
+      },
+      "type": "array"
+    },
+    "minEngineVersion": {
+      "description": "Minimum engine feature version this level needs. Omitted = 1 (baseline). When a remote level requires a newer engine than the running client, the client gates it as \"需要更新版本\" instead of crashing.",
+      "type": "number"
+    },
+    "name": {
+      "type": "string"
+    },
+    "pits": {
+      "items": {
+        "$ref": "#/definitions/PitDef"
+      },
+      "type": "array"
+    },
+    "recordSteps": {
+      "type": "number"
+    },
+    "rigs": {
+      "items": {
+        "$ref": "#/definitions/RigDef"
+      },
+      "type": "array"
+    },
+    "spawn": {
+      "$ref": "#/definitions/SpawnDef",
+      "description": "Single shared spawn for ALL actors (宪法: 单一出生点). Varies per level."
+    },
+    "spikes": {
+      "items": {
+        "$ref": "#/definitions/SpikeDef"
+      },
+      "type": "array"
+    },
+    "stones": {
+      "items": {
+        "$ref": "#/definitions/StoneDef"
+      },
+      "type": "array"
+    },
+    "theme": {
+      "$ref": "#/definitions/ThemeDef"
+    },
+    "tier2": {
+      "$ref": "#/definitions/Tier2Def",
+      "description": "Legacy continuous tier-2 span; prefer tier2Tiles for editable 3-cell pieces."
+    },
+    "tier2Tiles": {
+      "items": {
+        "$ref": "#/definitions/GroundTileDef"
+      },
+      "type": "array"
+    },
+    "walls": {
+      "items": {
+        "$ref": "#/definitions/WallDef"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "name",
+    "recordSteps",
+    "floorRows",
+    "rigs",
+    "key",
+    "door",
+    "clones",
+    "spawn"
+  ],
+  "type": "object"
+}

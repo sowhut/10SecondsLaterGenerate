@@ -1,5 +1,15 @@
 # @10s/schema
 
+The TypeScript declarations in `src/levelDef.ts` are the public format source of
+truth. `level.schema.json` is generated from `LevelDef` for non-TypeScript tools:
+
+```sh
+pnpm --filter @10s/schema schema:json
+```
+
+The JSON Schema contains only the public format. Released official JSON lives separately
+on the protected `levels` branch and is never generated into this package.
+
 The public **level-format contract** for *10 Seconds Later* — types, validation, and the
 playtest + grid contracts shared by the editor (browser) and the future backend (Node).
 
@@ -29,11 +39,11 @@ pnpm --filter @10s/schema typecheck  # tsc --noEmit (incl. tests)
 pnpm --filter @10s/schema test       # node:test + tsx
 ```
 
-## ⚠️ This is a mirror, not the source of truth
+## Source of truth and runtime parity
 
-The authoritative `LevelDef` lives in the **game's private repo**
-(`assets/scripts/level/LevelDef.ts`). This package mirrors it field-for-field and must be
-kept in sync deliberately. Likewise:
+`src/levelDef.ts` is authoritative for the serializable level shape. JSON Schema and the
+game's TypeScript types are generated/synchronized from it. Runtime behavior still belongs
+to the game engine, so these cross-repo version contracts remain deliberate:
 
 - `SCHEMA_VERSION` must equal the game's `LevelConfig.SCHEMA_VERSION`.
 - `PLAYTEST_IN` / `PLAYTEST_RESULT` must equal the strings in the game's `PlaytestBridge.ts`.
@@ -43,4 +53,5 @@ kept in sync deliberately. Likewise:
   not prove solvability** (that is guaranteed by the author beating their own level in the
   real engine).
 
-On any conflict, the game repo wins — or change both sides deliberately in the same step.
+Any format change must update this contract, the engine implementation, and the corresponding
+schema/engine version in the same release sequence.

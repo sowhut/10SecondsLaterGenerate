@@ -16,6 +16,7 @@
 ```sh
 sudo adduser --disabled-password --gecos "" deploy
 sudo install -d -o deploy -g deploy /var/www/10secslater.com
+sudo install -d -o deploy -g deploy /var/www/10secslater-levels
 ```
 
 在自己的电脑上创建一把只给 GitHub Actions 使用的密钥（不要在仓库目录内生成）：
@@ -52,6 +53,10 @@ location / {
 }
 ```
 
+正式关卡源文件位于本仓库受保护的 `levels` 分支。Nginx 将 `/levels/` 映射到独立的
+`/var/www/10secslater-levels/`；这样 `main` 官网部署的 `rsync --delete` 不会删除关卡发布物。
+关卡发布必须先上传 hash 文件，最后替换 `manifest.json`。
+
 检查并重载：
 
 ```sh
@@ -85,6 +90,7 @@ ssh-keyscan -p 22 -H 你的服务器公网IP
 | Variable | 用途 |
 | --- | --- |
 | `DEPLOY_ENABLED` | 完成服务器和 Secrets 配置后设为 `true`，用于开启生产部署 |
+| `DEPLOY_LEVELS_ENABLED` | `levels` 分支首次校验通过且 Nginx 就绪后设为 `true` |
 | `VITE_SPRITE_BASE_URL` | 托管贴图目录，例如 `https://www.10secslater.com/sprites` |
 | `VITE_SANDBOX_URL` | 托管 Cocos 试玩页，例如 `https://play.10secslater.com/sandbox/` |
 | `VITE_API_BASE_URL` | 投稿后端；尚未实现时留空 |
@@ -100,6 +106,10 @@ ssh-keyscan -p 22 -H 你的服务器公网IP
 `rsync --delete --delay-updates`，服务器目录始终与本次构建产物一致。
 
 如果需要紧急回滚，在 GitHub 上对目标提交执行 Revert 并合入 `main`；CI 通过后会自动部署旧内容。
+
+`levels` 分支由独立的 `Production Levels` workflow 发布。首次分支、权限和 Actions 配置见
+[`LEVELS_BRANCH.md`](LEVELS_BRANCH.md)。回滚关卡时对 `levels` 上的目标提交执行 Revert；旧 hash
+文件会继续保留，新的 manifest 会重新指向回滚后的内容。
 
 ## 5. 上线检查
 

@@ -12,6 +12,11 @@
   },
   "scripts": {
     "build": "pnpm -r --if-present build",
+    "levels:validate": "pnpm --filter @10s/schema build && node tools/levels.mjs validate",
+    "levels:approve": "pnpm --filter @10s/schema build && node tools/levels.mjs approve",
+    "levels:adopt": "pnpm --filter @10s/schema build && node tools/levels.mjs adopt",
+    "levels:release": "pnpm --filter @10s/schema build && node tools/levels.mjs release",
+    "schema:check": "pnpm --filter @10s/schema schema:check",
     "typecheck": "pnpm --filter @10s/schema build && pnpm -r --if-present typecheck",
     "lint": "eslint . --max-warnings 0",
     "test": "pnpm --filter @10s/schema build && pnpm -r --if-present test",
@@ -19,6 +24,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
+    "ajv": "8.17.1",
     "eslint": "^9.17.0",
     "globals": "^15.14.0",
     "typescript-eslint": "^8.18.0",

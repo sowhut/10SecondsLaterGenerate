@@ -1,12 +1,12 @@
 /**
  * LevelDef — the public level-format schema for 10 Seconds Later.
  *
- * MIRROR, NOT SOURCE OF TRUTH. The authoritative definition lives in the game's
- * private repo at `assets/scripts/level/LevelDef.ts`. This file is its public
- * contract, kept field-for-field in sync (PLAN §2.6, §6-M1, §10.4). When the game
- * schema changes, change it here in the same breath — the game wins on conflict.
+ * PUBLIC FORMAT SOURCE OF TRUTH. Released official JSON lives on this repo's
+ * protected `levels` branch. `level.schema.json` is generated from this interface;
+ * both production publishing and the game client consume the generated contract.
  *
- * Every interface below is copied verbatim from the game LevelDef.ts.
+ * Runtime engine changes that add fields must update this contract and bump the
+ * relevant schema/engine version before production level data can use them.
  */
 
 export interface SpawnDef {
@@ -150,7 +150,7 @@ export interface LevelDef {
 }
 
 /**
- * Submission / export envelope. Matches the game's `tools/export-levels.mts` body
+ * Submission / export envelope. Matches the production level release body
  * ({schemaVersion, minEngineVersion, def}) and reserves `author` so the future
  * backend can stamp it with zero editor changes (PLAN §5a, §2.4).
  */

@@ -10,9 +10,9 @@ The editor can run **locally or as a hosted website**. Both modes embed the same
 playtest sandbox deployed by the game team, so GitHub users do not need the private game
 source in order to playtest their drafts.
 
-> This repository contains the public level format and editor front-end. The game engine,
-> art assets, commercial levels, authentication, submissions, and moderation backend live
-> outside this repository. No game art or secrets are bundled here.
+> This repository contains the public level format and editor front-end. Released official
+> levels live on its protected `levels` branch; drafts stay local until publication. The game
+> engine, art assets, authentication, submissions, and moderation backend live elsewhere.
 
 ## Current status
 
@@ -20,6 +20,11 @@ source in order to playtest their drafts.
 - **M3 editor side complete:** embedded real-engine playtest via a strict `postMessage`
   handshake. A compatible hosted Cocos sandbox is required for end-to-end playtesting.
 - **Next:** JSON export/import, submissions, examples, and the public level-format guide.
+
+The public format source lives in `packages/schema/src/levelDef.ts`; a generated
+`packages/schema/level.schema.json` lets non-TypeScript tools validate the same contract.
+Released official JSON lives on the protected public `levels` branch. `main` intentionally
+contains no official bodies. See [`docs/LEVELS_BRANCH.md`](docs/LEVELS_BRANCH.md).
 
 ## Run the editor locally
 
@@ -43,6 +48,8 @@ The Vite build produces both `/` (personal project homepage) and `/editor/` (edi
 GitHub Actions runs lint, type-checks, tests, and builds every change; pushes to `main`
 can then deploy the static output to the Tencent Cloud Nginx host over SSH. See
 [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) for the one-time server and GitHub setup.
+Production level JSON is validated and deployed independently by pushes to `levels`; this does
+not build or submit a new Cocos/WeChat package.
 
 ## Hosted sandbox model
 
