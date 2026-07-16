@@ -17,6 +17,11 @@ Place / move / delete props on the canvas; validation (floating / out-of-bounds 
 spawn·key·door / rig > 3) is driven by `validateLevel` and shown as red boxes + a reasons list.
 Drafts persist to `localStorage` (`10s.editor.drafts.v1`) — refresh-safe.
 
+Import accepts a bare `LevelDef` or a standard `LevelEnvelope`. Export emits a
+production-compatible `LevelEnvelope` and remains locked until the exact current draft has
+passed validation and been beaten in the real Cocos playtest sandbox. Import/export only reads
+and downloads local browser files; it never receives repository or GitHub write access.
+
 ## Configuration (`src/config.ts`, injected via Vite `import.meta.env`)
 
 | Env var | Default | Purpose |
@@ -35,7 +40,10 @@ Without it, sprites gracefully degrade to labeled placeholder boxes.
 
 ## Boundaries
 
-- **Never writes the game's `LevelDef.ts`** — output is local drafts; export/submit is future work.
+- **Never writes the game or GitHub repository** — output is local drafts and downloaded JSON.
+- Maintainers explicitly apply an export inside a protected `levels` worktree with
+  `pnpm levels:apply -- file.json L08`; replacing an existing id additionally requires
+  `--replace`.
 - **All** support / validation / geometry / constants come from `@10s/schema` — this package
   keeps no copy of that logic.
 - Playtest sandbox (`src/playtestEmbed.ts`) mounts the hosted Cocos build, waits for the ready
@@ -49,6 +57,7 @@ Without it, sprites gracefully degrade to labeled placeholder boxes.
 | `editor/index.html` | editor HTML entry at `/editor/` |
 | `src/config.ts` | env-injected endpoints |
 | `src/drafts.ts` | localStorage draft store + blank-level factory |
+| `src/levelFiles.ts` | defensive LevelDef/LevelEnvelope JSON import + canonical export |
 | `src/editor.ts` | canvas render + placement + inspector/validation UI (ported from the private generator) |
 | `src/playtestEmbed.ts` | hosted Cocos iframe + playtest handshake/result lifecycle |
 | `src/main.ts` | editor TypeScript entry |
