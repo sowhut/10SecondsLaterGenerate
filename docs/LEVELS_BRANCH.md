@@ -62,8 +62,10 @@ git worktree add ../10SecondsLaterGenerate-levels levels
 
 进入 `Settings → Environments → production`：
 
-1. Deployment branches 选择 `Selected branches and tags`，允许 `main` 与 `levels`。
-2. 建议增加 Required reviewer，使每次真正上传关卡前还有一次人工确认。
+1. Deployment branches 选择 `Selected branches and tags`，分别添加两条 branch rule：
+   `main` 和 `levels`。不要填写成单条 `main,levels`；GitHub 会把它当作一个不存在的字面分支名。
+2. 增加 Required reviewer，使每次真正上传关卡前还有一次人工确认；否则有合并权限的人一旦
+   将 PR 合入 `levels`，部署会自动开始。
 3. 如果只有你自己，不要开启 `Prevent self-review`，否则会无法批准自己的发布。
 4. Environment Secrets 保持：
    - `DEPLOY_HOST`
@@ -91,8 +93,10 @@ git switch levels
 git pull --ff-only
 git switch -c level/L08
 
-# 编辑已有 JSON，或采纳编辑器导出的 LevelDef / LevelEnvelope
-pnpm levels:adopt -- /path/to/export.json L08
+# 公共编辑器导出标准 LevelEnvelope 后，安全新增或显式替换官方 JSON
+pnpm levels:apply -- /path/to/L08.json L08
+# 更新已有官方关卡必须显式确认覆盖：
+# pnpm levels:apply -- /path/to/L01.json L01 --replace
 pnpm levels:validate
 
 # 在真实 Cocos 中通关后
@@ -108,7 +112,9 @@ git push -u origin level/L08
 `DEPLOY_LEVELS_ENABLED=true` 时进入 production Environment 审批并发布。
 
 社区贡献仍向 `main` 提交 PR。你决定采纳后，在自己的 `levels` 工作分支运行
-`pnpm levels:adopt`，完成真实 Cocos 通关和审批，再提交到 `levels`。
+`pnpm levels:apply`，完成真实 Cocos 通关和审批，再提交到 `levels`。浏览器编辑器只处理本地
+草稿和下载文件，不持有 GitHub 写权限；是否进入 production 仍由受保护分支 PR、状态检查和
+production Environment 审批共同决定。
 
 ## 更新 Schema 或发布工具
 

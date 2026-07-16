@@ -19,7 +19,8 @@ source in order to playtest their drafts.
 - **M0–M2 complete:** monorepo, schema/validation package, Canvas editor, local drafts.
 - **M3 editor side complete:** embedded real-engine playtest via a strict `postMessage`
   handshake. A compatible hosted Cocos sandbox is required for end-to-end playtesting.
-- **Next:** JSON export/import, submissions, examples, and the public level-format guide.
+- **M4a complete:** defensive LevelDef/LevelEnvelope import and playtest-gated JSON export.
+- **Next:** authenticated submissions, examples, and the public level-format guide.
 
 The public format source lives in `packages/schema/src/levelDef.ts`; a generated
 `packages/schema/level.schema.json` lets non-TypeScript tools validate the same contract.
@@ -50,6 +51,26 @@ can then deploy the static output to the Tencent Cloud Nginx host over SSH. See
 [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) for the one-time server and GitHub setup.
 Production level JSON is validated and deployed independently by pushes to `levels`; this does
 not build or submit a new Cocos/WeChat package.
+
+## Security and publishing boundary
+
+The browser editor has no repository credentials and cannot write GitHub or production: JSON
+import reads a user-selected local file, and export only downloads a file. Anyone may change
+levels in a fork, but production deployment requires a PR merged into the protected `levels`
+branch and the `Validate production levels` status check, and is restricted to the GitHub
+`production` Environment. Configure a Required reviewer on that Environment to make the final
+deployment approval mandatory. Pull-request workflows never receive the deployment step or its
+environment secrets.
+
+Maintainers apply an export from a local `levels` worktree. Adding a level must preserve
+contiguous ids; replacing an official id requires the explicit `--replace` flag, invalidates its
+old playtest hash, and cannot pass `levels:release` until the new content is approved again.
+
+The current playtest approval ledger is a maintainer attestation and accidental-change gate,
+not cryptographic proof: a contributor can calculate a hash and propose it in a PR, but cannot
+merge or deploy that PR without repository permission. Keep merge access narrow and require a
+production Environment reviewer. A future submission backend can strengthen this with signed
+playtest receipts from the trusted Cocos sandbox.
 
 ## Hosted sandbox model
 

@@ -15,6 +15,7 @@
     "levels:validate": "pnpm --filter @10s/schema build && node tools/levels.mjs validate",
     "levels:approve": "pnpm --filter @10s/schema build && node tools/levels.mjs approve",
     "levels:adopt": "pnpm --filter @10s/schema build && node tools/levels.mjs adopt",
+    "levels:apply": "pnpm --filter @10s/schema build && node tools/levels.mjs apply",
     "levels:release": "pnpm --filter @10s/schema build && node tools/levels.mjs release",
     "schema:check": "pnpm --filter @10s/schema schema:check",
     "typecheck": "pnpm --filter @10s/schema build && pnpm -r --if-present typecheck",
