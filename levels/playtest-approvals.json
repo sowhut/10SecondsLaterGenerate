@@ -2,9 +2,9 @@
   "version": 1,
   "levels": {
     "L01": {
-      "sha256": "ff981b26fca559ffe4af1ee0d859a618834659f131e173339f1ab2ef733104da",
-      "approvedAt": "2026-07-15T00:00:00.000Z",
-      "note": "Migrated unchanged from the existing bundled production baseline; migration itself did not replay the level"
+      "sha256": "bc165708467f6ac7b3f03b6580e95d75e3d9eb17d20c92222bcfc318c0ab28c7",
+      "approvedAt": "2026-07-16T07:43:55.048Z",
+      "note": "Confirmed beatable in the real Cocos runtime"
     },
     "L02": {
       "sha256": "a02be72712fa71d6d7a9b1a49de6e16eec88e02a6962d66db74e4e33a0123c0c",
@@ -35,6 +35,11 @@
       "sha256": "2f1d890f9ac1829ed7563d9ccd574690f306506df2a150428dcb9708ac558f7e",
       "approvedAt": "2026-07-15T00:00:00.000Z",
       "note": "Migrated unchanged from the existing bundled production baseline; migration itself did not replay the level"
+    },
+    "L08": {
+      "sha256": "4ebd215fcff891dd7a6a51241aa88a8a5e5a8374fe00c823d2f69a0d143086c7",
+      "approvedAt": "2026-07-16T07:43:30.492Z",
+      "note": "Confirmed beatable in the real Cocos runtime"
     }
   }
 }
