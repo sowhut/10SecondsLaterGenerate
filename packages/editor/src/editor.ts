@@ -43,6 +43,7 @@ import {
 
 import { CONFIG } from './config';
 import { type LevelDoc, loadDocs, saveDocs, makeDefaultLevel, newDocId } from './drafts';
+import { MAX_LEVEL_JSON_BYTES, exportFilename, parseLevelJson, serializeLevelEnvelope } from './levelFiles';
 import { openPlaytest, isPlaytestConfigured } from './playtestEmbed';
 
 // --------------------------------------------------------------------------- types
@@ -138,6 +139,8 @@ const state = {
   failed: new Set<string>(),
   dirty: false,
   storageError: null as string | null,
+  fileNotice: null as string | null,
+  fileNoticeError: false,
 };
 
 function q<T extends HTMLElement>(sel: string): T {
@@ -151,6 +154,9 @@ const el = {
   toolList: q<HTMLElement>('#toolList'),
   draftTitle: q<HTMLElement>('#draftTitle'),
   storageHint: q<HTMLElement>('#storageHint'),
+  importFileInput: q<HTMLInputElement>('#importFileInput'),
+  importButton: q<HTMLButtonElement>('#importButton'),
+  exportButton: q<HTMLButtonElement>('#exportButton'),
   cancelButton: q<HTMLButtonElement>('#cancelButton'),
   pointerReadout: q<HTMLElement>('#pointerReadout'),
   selectionSize: q<HTMLElement>('#selectionSize'),
@@ -190,6 +196,8 @@ function resetInteraction(): void {
 }
 function setDirty(dirty = true): void {
   state.dirty = dirty;
+  state.fileNotice = null;
+  state.fileNoticeError = false;
   currentDoc().name = level().name;
   if (dirty) state.dirty = !persist();
   renderAll();
@@ -765,6 +773,7 @@ function cloneDraft(): void {
   const src = currentDoc();
   const lvl = clone(src.level);
   lvl.name = `${src.name} 副本`;
+  // A clone is a new draft, not permission to overwrite the imported official id.
   state.docs.splice(state.docIndex + 1, 0, { id: newDocId(), name: lvl.name, level: lvl });
   state.docIndex += 1;
   resetInteraction();
@@ -791,6 +800,59 @@ function selectDraft(index: number): void {
   resetInteraction();
   state.dirty = false;
   renderAll();
+}
+
+async function importSelectedFile(): Promise<void> {
+  const file = el.importFileInput.files?.[0];
+  if (!file) return;
+  try {
+    if (file.size > MAX_LEVEL_JSON_BYTES) throw new Error('关卡 JSON 超过 1 MB 限制');
+    const imported = parseLevelJson(await file.text(), file.name);
+    ensureRigColors(imported.level);
+    state.docs.push({
+      id: newDocId(),
+      name: imported.level.name,
+      level: imported.level,
+      sourceId: imported.sourceId,
+    });
+    state.docIndex = state.docs.length - 1;
+    resetInteraction();
+    state.dirty = !persist();
+    state.fileNoticeError = false;
+    state.fileNotice = imported.issues.length
+      ? `已导入 ${file.name}，请修正 ${imported.issues.length} 项校验问题后再试玩`
+      : `已导入 ${file.name}${imported.sourceId ? ` · 来源 ${imported.sourceId}` : ''}`;
+  } catch (error) {
+    state.fileNoticeError = true;
+    state.fileNotice = `导入失败：${error instanceof Error ? error.message : String(error)}`;
+  } finally {
+    // Allow selecting the same file again after fixing it externally.
+    el.importFileInput.value = '';
+    renderAll();
+  }
+}
+
+function exportCurrentDraft(): void {
+  if (validateLevel(level()).length || !playtestUnlocked()) return;
+  try {
+    const filename = exportFilename(currentDoc().sourceId, level().name);
+    const blob = new Blob([serializeLevelEnvelope(level())], { type: 'application/json;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = filename;
+    anchor.hidden = true;
+    document.body.append(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+    state.fileNoticeError = false;
+    state.fileNotice = `已导出 ${filename} · 写入 levels 分支仍需维护者审核`;
+  } catch (error) {
+    state.fileNoticeError = true;
+    state.fileNotice = `导出失败：${error instanceof Error ? error.message : String(error)}`;
+  }
+  renderHeader();
 }
 
 // --------------------------------------------------------------------------- inspector UI
@@ -834,7 +896,7 @@ function renderInspector(): void {
   const name = document.createElement('strong');
   name.textContent = def.name;
   const meta = document.createElement('span');
-  meta.textContent = `第 ${state.docIndex + 1} / ${state.docs.length} 个草稿`;
+  meta.textContent = `第 ${state.docIndex + 1} / ${state.docs.length} 个草稿${currentDoc().sourceId ? ` · 来源 ${currentDoc().sourceId}` : ''}`;
   title.append(name, meta);
   const dirty = document.createElement('span');
   dirty.textContent = state.dirty ? '未保存*' : '已存本地';
@@ -921,7 +983,7 @@ function renderDrafts(): void {
   state.docs.forEach((doc, index) => {
     const option = document.createElement('option');
     option.value = String(index);
-    option.textContent = `${index + 1}. ${doc.level.name || doc.name}`;
+    option.textContent = `${index + 1}. ${doc.sourceId ? `[${doc.sourceId}] ` : ''}${doc.level.name || doc.name}`;
     el.draftSelect.append(option);
   });
   el.draftSelect.value = String(state.docIndex);
@@ -1002,8 +1064,9 @@ function renderStatus(): void {
 
 function renderHeader(): void {
   el.draftTitle.textContent = `${level().name}${state.dirty ? ' *' : ''}`;
-  el.storageHint.textContent = state.storageError ?? '本地草稿 · 已自动保存（不写游戏源码）';
-  el.storageHint.classList.toggle('storage-error', Boolean(state.storageError));
+  el.storageHint.textContent = state.storageError ?? state.fileNotice ?? '本地草稿 · 已自动保存（不写游戏源码）';
+  el.storageHint.classList.toggle('storage-error', Boolean(state.storageError) || state.fileNoticeError);
+  el.storageHint.classList.toggle('file-notice', Boolean(state.fileNotice) && !state.fileNoticeError && !state.storageError);
   el.cancelButton.hidden = !state.pending;
 }
 
@@ -1017,6 +1080,12 @@ function renderActions(): void {
     : !valid
       ? '先修正校验问题再试玩'
       : '在真实引擎沙箱里试玩本关（通关后解锁投稿）';
+  el.exportButton.disabled = !(valid && playtestUnlocked());
+  el.exportButton.title = !valid
+    ? '先修正校验问题'
+    : !playtestUnlocked()
+      ? '必须在真实 Cocos 引擎中通关当前内容后才能导出'
+      : '导出标准 LevelEnvelope JSON';
 }
 
 function renderAll(): void {
@@ -1058,6 +1127,9 @@ function wireEvents(): void {
     }
   });
   el.cancelButton.addEventListener('click', cancelDraft);
+  el.importButton.addEventListener('click', () => el.importFileInput.click());
+  el.importFileInput.addEventListener('change', () => void importSelectedFile());
+  el.exportButton.addEventListener('click', exportCurrentDraft);
   el.playtestButton.addEventListener('click', () => {
     if (!canPlaytest()) return;
     const id = currentDoc().id;

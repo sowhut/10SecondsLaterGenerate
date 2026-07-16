@@ -23,7 +23,7 @@ class MemoryStorage {
 
 function doc(): LevelDoc {
   const level = makeDefaultLevel('测试草稿');
-  return { id: 'draft-1', name: level.name, level };
+  return { id: 'draft-1', name: level.name, level, sourceId: 'L01' };
 }
 
 test('valid drafts round-trip through storage', () => {

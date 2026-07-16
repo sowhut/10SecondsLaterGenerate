@@ -57,6 +57,9 @@ location / {
 `/var/www/10secslater-levels/`；这样 `main` 官网部署的 `rsync --delete` 不会删除关卡发布物。
 关卡发布必须先上传 hash 文件，最后替换 `manifest.json`。
 
+`location` 的 hash 文件正则必须保留双引号；其中包含 `{2}` / `{8}`，不加引号会被
+Nginx 配置解析器误判为配置块起始符并导致 `pcre2_compile()` 失败。
+
 检查并重载：
 
 ```sh
@@ -67,6 +70,8 @@ sudo systemctl reload nginx
 ## 3. 配置 GitHub Environment
 
 打开 GitHub 仓库：`Settings → Environments → New environment`，创建 `production`。
+Deployment branches 选择 `Selected branches and tags` 后，分别添加 `main`、`levels` 两条规则，
+不要写成一条 `main,levels`。
 在该 environment 中增加以下 Secrets：
 
 | Secret | 内容 |
@@ -96,6 +101,11 @@ ssh-keyscan -p 22 -H 你的服务器公网IP
 | `VITE_API_BASE_URL` | 投稿后端；尚未实现时留空 |
 
 这些 `VITE_*` 值会被打进浏览器 JS，本来就是公开 URL，不要把密码或 token 放进去。
+
+贴图不随本仓库的官网产物发布。它由私有 Cocos 仓库的 `Publish Web Sprites` workflow 写入
+`/var/www/10secslater-sprites/`，Nginx 再映射为 `/sprites/`；首次启用需在 Cocos 仓库设置
+`DEPLOY_SPRITES_ENABLED=true`。不要把贴图手动放入 `/var/www/10secslater.com/sprites/`，该目录会被
+本工作流的 `rsync --delete` 清理。完整流程见 Cocos 仓库 `docs/SPRITE_PIPELINE.md`。
 
 ## 4. 首次发布与回滚
 

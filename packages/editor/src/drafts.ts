@@ -9,6 +9,8 @@ export interface LevelDoc {
   id: string;
   name: string;
   level: LevelDef;
+  /** Official id inferred from an imported Lxx JSON; clones/new drafts intentionally omit it. */
+  sourceId?: string;
 }
 
 const STORAGE_KEY = '10s.editor.drafts.v1';
@@ -34,7 +36,12 @@ type DraftStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 function isLevelDoc(value: unknown): value is LevelDoc {
   if (!value || typeof value !== 'object') return false;
   const doc = value as Partial<LevelDoc>;
-  return typeof doc.id === 'string' && typeof doc.name === 'string' && isLevelDefShape(doc.level);
+  return (
+    typeof doc.id === 'string' &&
+    typeof doc.name === 'string' &&
+    (doc.sourceId === undefined || /^L\d{2}$/.test(doc.sourceId)) &&
+    isLevelDefShape(doc.level)
+  );
 }
 
 function recoverCorruptDrafts(storage: DraftStorage, raw: string): DraftLoadResult {

@@ -13,6 +13,7 @@ import {
   mkdirSync,
   readFileSync,
   readdirSync,
+  renameSync,
   rmSync,
   unlinkSync,
   writeFileSync,
@@ -72,16 +73,19 @@ function officialLevels() {
     if (ordinal !== index + 1) {
       throw new Error(`Official levels must be contiguous from L01; got ${file} at slot ${index + 1}`);
     }
-    const def = readJson(resolve(OFFICIAL_DIR, file));
-    const canonical = canonicalJson(def);
-    return {
-      id: `L${ordinal}`,
-      sourceId: `L${String(ordinal).padStart(2, '0')}`,
-      ordinal,
-      def,
-      hash: sha256(canonical),
-    };
+    return levelRecord(`L${String(ordinal).padStart(2, '0')}`, readJson(resolve(OFFICIAL_DIR, file)));
   });
+}
+
+function levelRecord(sourceId, def) {
+  const ordinal = Number(sourceId.slice(1));
+  return {
+    id: `L${ordinal}`,
+    sourceId,
+    ordinal,
+    def,
+    hash: sha256(canonicalJson(def)),
+  };
 }
 
 function schemaValidator() {
@@ -150,25 +154,74 @@ function approve(id) {
   console.log(`[levels] approved ${id} ${level.hash.slice(0, 8)}`);
 }
 
-function adopt(fileArg, idArg) {
-  if (!fileArg) throw new Error('Usage: pnpm levels:adopt -- /path/to/export.json [L08]');
-  mkdirSync(OFFICIAL_DIR, { recursive: true });
+function inputDef(fileArg) {
   const input = readJson(resolve(fileArg));
-  const def = input && typeof input === 'object' && 'def' in input ? input.def : input;
-  const existing = readdirSync(OFFICIAL_DIR).filter((name) => /^L\d{2}\.json$/.test(name)).sort();
-  const id = idArg ?? `L${String(existing.length + 1).padStart(2, '0')}`;
+  if (!input || typeof input !== 'object' || !('def' in input)) return input;
+  if (input.schemaVersion !== SCHEMA_VERSION) {
+    throw new Error(`Unsupported LevelEnvelope schemaVersion ${String(input.schemaVersion)}`);
+  }
+  if (!Number.isInteger(input.minEngineVersion) || input.minEngineVersion < 1) {
+    throw new Error('LevelEnvelope minEngineVersion must be a positive integer');
+  }
+  const defVersion = input.def?.minEngineVersion ?? 1;
+  if (defVersion !== input.minEngineVersion) {
+    throw new Error('LevelEnvelope and LevelDef minEngineVersion must match');
+  }
+  return input.def;
+}
+
+/**
+ * Safely apply an exported draft to the official set. New levels must be the next
+ * contiguous id; existing levels require an explicit --replace acknowledgement.
+ */
+function apply(fileArg, idArg, replaceArg) {
+  if (!fileArg) {
+    throw new Error('Usage: pnpm levels:apply -- /path/to/export.json [L08] [--replace]');
+  }
+  mkdirSync(OFFICIAL_DIR, { recursive: true });
+  if (replaceArg !== undefined && replaceArg !== '--replace') {
+    throw new Error(`Unknown option ${replaceArg}; expected --replace`);
+  }
+  const current = officialLevels();
+  const id = idArg ?? `L${String(current.length + 1).padStart(2, '0')}`;
   if (!/^L\d{2}$/.test(id)) throw new Error(`Invalid level id ${id}; expected L01`);
   const target = resolve(OFFICIAL_DIR, `${id}.json`);
-  if (existsSync(target)) throw new Error(`${id} already exists; edit it explicitly instead of overwriting via adopt`);
-
-  writeFileSync(target, `${JSON.stringify(def, null, 2)}\n`, 'utf8');
-  try {
-    validateAll();
-  } catch (error) {
-    unlinkSync(target);
-    throw error;
+  const existingIndex = current.findIndex((level) => level.sourceId === id);
+  const replacing = existingIndex >= 0;
+  if (replacing && replaceArg !== '--replace') {
+    throw new Error(`${id} already exists; pass --replace only after reviewing the target diff`);
   }
-  console.log(`[levels] adopted ${id} from ${resolve(fileArg)}; Cocos playtest approval is now required`);
+  if (!replacing && replaceArg === '--replace') {
+    throw new Error(`${id} does not exist; omit --replace when adding the next level`);
+  }
+  const ordinal = Number(id.slice(1));
+  if (!replacing && ordinal !== current.length + 1) {
+    throw new Error(`New official level must be contiguous; expected L${String(current.length + 1).padStart(2, '0')}`);
+  }
+
+  const candidate = levelRecord(id, inputDef(fileArg));
+  const prospective = replacing
+    ? current.map((level, index) => (index === existingIndex ? candidate : level))
+    : [...current, candidate];
+  validateAll(prospective);
+
+  const temporary = resolve(OFFICIAL_DIR, `.${id}.${process.pid}.tmp`);
+  try {
+    writeFileSync(temporary, `${JSON.stringify(candidate.def, null, 2)}\n`, 'utf8');
+    renameSync(temporary, target);
+  } finally {
+    if (existsSync(temporary)) unlinkSync(temporary);
+  }
+  console.log(
+    `[levels] ${replacing ? 'replaced' : 'added'} ${id} from ${resolve(fileArg)}; ` +
+      'Cocos playtest approval is now required',
+  );
+}
+
+/** Backward-compatible new-level alias; never permits replacement. */
+function adopt(fileArg, idArg) {
+  if (!fileArg) throw new Error('Usage: pnpm levels:adopt -- /path/to/export.json [L08]');
+  apply(fileArg, idArg, undefined);
 }
 
 function release(levels = validateAll()) {
@@ -207,8 +260,13 @@ function release(levels = validateAll()) {
 }
 
 const command = process.argv[2] ?? 'validate';
+const commandArgs = process.argv.slice(3);
+// `pnpm <script> -- args` may preserve the separator as argv[3] depending on the
+// pnpm invocation form. Accept both documented forms without shifting real args.
+if (commandArgs[0] === '--') commandArgs.shift();
 if (command === 'validate') validateAll();
-else if (command === 'approve') approve(process.argv[3]);
-else if (command === 'adopt') adopt(process.argv[3], process.argv[4]);
+else if (command === 'approve') approve(commandArgs[0]);
+else if (command === 'adopt') adopt(commandArgs[0], commandArgs[1]);
+else if (command === 'apply') apply(commandArgs[0], commandArgs[1], commandArgs[2]);
 else if (command === 'release') release();
 else throw new Error(`Unknown command: ${command}`);

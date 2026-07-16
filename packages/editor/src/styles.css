@@ -112,6 +112,10 @@ header {
   color: var(--bad);
 }
 
+.file-notice {
+  color: var(--cyan);
+}
+
 h2 {
   margin: 16px 0 8px;
   font-size: 12px;
