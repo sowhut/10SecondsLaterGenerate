@@ -34,3 +34,7 @@ docs/PLAN.md
 *.jpeg
 *.webp
 .aider*
+<<<<<<< HEAD
+=======
+!packages/editor/public/qr-miniprogram.jpg
+>>>>>>> codex/kimi-k3-homepage-v2
