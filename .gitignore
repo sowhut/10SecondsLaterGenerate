@@ -33,3 +33,4 @@ docs/PLAN.md
 *.jpg
 *.jpeg
 *.webp
+.aider*
