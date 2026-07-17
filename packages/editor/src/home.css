@@ -73,7 +73,7 @@ a {
 .site-head,
 .hero,
 .loop,
-.notes,
+.mp,
 .handoff,
 .site-foot {
   width: min(1120px, 100% - 48px);
@@ -230,10 +230,11 @@ a {
 
 .hero-title {
   margin: 0;
-  font-size: clamp(58px, 12vw, 118px);
+  font-size: clamp(58px, 12vw, 104px);
   line-height: 1.02;
   font-weight: 900;
   letter-spacing: 0.03em;
+  white-space: nowrap;
 }
 
 .hero-title::after {
@@ -412,7 +413,7 @@ a {
 /* ---------- 区块通用 ---------- */
 
 .loop,
-.notes,
+.mp,
 .handoff {
   padding: clamp(56px, 9vh, 96px) 0;
   border-top: 1.5px dashed var(--ink-25);
@@ -424,6 +425,7 @@ a {
 }
 
 .section-head h2,
+.mp-copy h2,
 .handoff-inner h2 {
   margin: 0 0 14px;
   font-size: clamp(30px, 4.4vw, 50px);
@@ -503,51 +505,76 @@ a {
   color: var(--ink-60);
 }
 
-/* ---------- 批注 ---------- */
+/* ---------- 小程序 ---------- */
 
-.notes-grid {
-  list-style: none;
-  margin: 0;
-  padding: 0;
+.mp-grid {
   display: grid;
-  gap: 20px;
+  gap: clamp(32px, 5vw, 64px);
+  align-items: center;
 }
 
-.notes-grid li {
-  padding: 22px 24px;
-  border: 1.5px solid var(--ink);
-  background: var(--paper);
-  box-shadow: 5px 5px 0 var(--ink-12);
-  transform: rotate(var(--rot, 0deg));
+.mp-intro {
+  margin: 0;
+  max-width: 34em;
+  font-size: 16px;
+  line-height: 2;
+  color: var(--ink-80);
 }
 
-.notes-grid li.note-wide {
-  border-style: dashed;
-  box-shadow: none;
+.mp-qr {
+  margin: 0;
+  justify-self: center;
+}
+
+.mp-qr-placeholder {
+  width: 200px;
+  aspect-ratio: 1;
   display: flex;
-  align-items: baseline;
-  gap: 20px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 20px;
+  border: 1.5px dashed var(--ink-40);
+  background: var(--paper);
+  box-shadow: 6px 6px 0 var(--ink-12);
+  transform: rotate(0.4deg);
 }
 
-.note-no {
-  display: block;
-  margin-bottom: 12px;
+.mp-qr-placeholder svg {
+  width: 56px;
+  height: 56px;
+}
+
+.mp-qr-text {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink-80);
+}
+
+.mp-qr-sub {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.24em;
+  color: var(--ink-40);
+}
+
+.mp-qr figcaption {
+  margin-top: 14px;
   font-family: var(--mono);
   font-size: 11px;
-  letter-spacing: 0.14em;
-  color: var(--red);
+  letter-spacing: 0.06em;
+  color: var(--ink-60);
+  text-align: center;
 }
 
-.note-wide .note-no {
-  flex: none;
-  margin-bottom: 0;
-}
-
-.notes-grid p {
-  margin: 0;
-  font-size: 16px;
-  line-height: 1.9;
-  color: var(--ink-80);
+/* 替换为真实小程序码图片后使用（见 index.html 中的 TODO 注释） */
+.mp-qr-img {
+  display: block;
+  width: 200px;
+  height: 200px;
+  border: 1.5px solid var(--ink);
+  box-shadow: 6px 6px 0 var(--ink-12);
 }
 
 /* ---------- 交接 ---------- */
@@ -611,16 +638,6 @@ a {
 
 /* ---------- 响应式 ---------- */
 
-@media (min-width: 641px) {
-  .notes-grid {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .notes-grid li.note-wide {
-    grid-column: 1 / -1;
-  }
-}
-
 @media (min-width: 761px) {
   .steps {
     grid-template-columns: repeat(3, 1fr);
@@ -644,6 +661,14 @@ a {
     position: relative;
     margin-bottom: 20px;
   }
+
+  .mp-grid {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .mp-qr {
+    justify-self: end;
+  }
 }
 
 @media (min-width: 981px) {
@@ -653,31 +678,7 @@ a {
   }
 
   .hero-title {
-    font-size: clamp(64px, 7.6vw, 118px);
-  }
-
-  .notes-grid {
-    grid-template-columns: repeat(12, 1fr);
-  }
-
-  .notes-grid li:nth-child(1) {
-    grid-column: span 7;
-  }
-
-  .notes-grid li:nth-child(2) {
-    grid-column: span 5;
-  }
-
-  .notes-grid li:nth-child(3) {
-    grid-column: span 5;
-  }
-
-  .notes-grid li:nth-child(4) {
-    grid-column: span 7;
-  }
-
-  .notes-grid li.note-wide {
-    grid-column: span 12;
+    font-size: clamp(64px, 7.6vw, 104px);
   }
 }
 
@@ -685,7 +686,7 @@ a {
   .site-head,
   .hero,
   .loop,
-  .notes,
+  .mp,
   .handoff,
   .site-foot {
     width: min(1120px, 100% - 32px);
@@ -705,15 +706,6 @@ a {
   .scene-paper {
     padding: 6px;
     transform: none;
-  }
-
-  .notes-grid li {
-    transform: none;
-  }
-
-  .note-wide {
-    flex-direction: column;
-    gap: 8px;
   }
 
   .site-foot {

@@ -69,7 +69,7 @@
             <canvas
               data-scene
               role="img"
-              aria-label="循环示意图：小人走过两层平台拿到钥匙，十秒用尽；时间倒带后，过去的分身重演这段路去取钥匙，现在的你直接走向被打开的大门。"
+              aria-label="循环示意图：小人走上两层平台拿到钥匙，跳回地面把钥匙放下；时间倒带后，过去的分身重演这段路，现在的你路过捡起钥匙，打开大门。"
             ></canvas>
             <noscript>
               <p class="scene-noscript">
@@ -171,33 +171,47 @@
         </ol>
       </section>
 
-      <section class="notes" aria-labelledby="notes-title">
-        <header class="section-head" data-reveal>
-          <p class="kicker"><span class="kicker-dot" aria-hidden="true"></span>FIELD NOTES · 批注</p>
-          <h2 id="notes-title">纸页边缘写着的规则。</h2>
-        </header>
-        <ul class="notes-grid">
-          <li data-reveal style="--rot: -0.5deg">
-            <span class="note-no">批注 01</span>
-            <p>一次记录是 600 步，正好十秒。每一次，都一样长。</p>
-          </li>
-          <li data-reveal style="--rot: 0.4deg">
-            <span class="note-no">批注 02</span>
-            <p>分身不思考，只重复。它走得多准，取决于你上次走得多认真。</p>
-          </li>
-          <li data-reveal style="--rot: 0.35deg">
-            <span class="note-no">批注 03</span>
-            <p>钥匙、门、炸弹、两层高台。道具不多，够摆出一个谜题就好。</p>
-          </li>
-          <li data-reveal style="--rot: -0.35deg">
-            <span class="note-no">批注 04</span>
-            <p>每一关都是一张草图。画坏了，擦掉重画。</p>
-          </li>
-          <li class="note-wide" data-reveal>
-            <span class="note-no">批注 05</span>
-            <p>草稿只存在这台浏览器里——像真正的草稿一样。</p>
-          </li>
-        </ul>
+      <section class="mp" aria-labelledby="mp-title">
+        <div class="mp-grid">
+          <div class="mp-copy" data-reveal>
+            <p class="kicker">
+              <span class="kicker-dot" aria-hidden="true"></span>MINI PROGRAM · 小程序
+            </p>
+            <h2 id="mp-title">幽紫洞穴，装进口袋。</h2>
+            <p class="mp-intro">
+              在幽紫洞穴里，录下角色 10 秒的行动，再操控下一个角色接力配合。踩压力板、搬箱、炸石头、用跨越时空的钥匙接力开门，让多个“自己”同时协作，解开精巧机关。无战斗，纯粹的时空谜题巧思。
+            </p>
+          </div>
+          <figure class="mp-qr" data-reveal>
+            <!-- TODO(上线前)：把下方占位块替换为真实小程序码图片，例如：
+                 <img class="mp-qr-img" src="/qr-miniprogram.png" alt="十秒以后微信小程序码" width="200" height="200" /> -->
+            <div class="mp-qr-placeholder" role="img" aria-label="小程序二维码占位，待替换为真实小程序码">
+              <svg viewBox="0 0 48 48" fill="none" aria-hidden="true">
+                <rect
+                  x="6"
+                  y="14"
+                  width="14"
+                  height="22"
+                  rx="7"
+                  stroke="#2e4fa3"
+                  stroke-width="2.5"
+                  stroke-dasharray="4 4"
+                />
+                <rect x="26" y="20" width="14" height="22" rx="7" fill="#211d16" />
+                <path
+                  d="M20 31h6"
+                  stroke="#211d16"
+                  stroke-width="2.5"
+                  stroke-linecap="round"
+                  stroke-dasharray="1 5"
+                />
+              </svg>
+              <span class="mp-qr-text">小程序码占位</span>
+              <span class="mp-qr-sub">待替换</span>
+            </div>
+            <figcaption>微信扫码，进入幽紫洞穴。</figcaption>
+          </figure>
+        </div>
       </section>
 
       <section class="handoff" aria-labelledby="handoff-title">

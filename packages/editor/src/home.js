@@ -1,6 +1,8 @@
 /*
  * 十秒以后 · 首页
  * 首屏草图：自动演示「记录 → 回溯 → 与过去的自己协作」的一次完整循环。
+ * 第一次记录：小人拿到钥匙，跳回地面把钥匙放下，但来不及走到门边；
+ * 第二次：分身分毫不差地重演，现在的你路过捡起钥匙，开门过关。
  * 无依赖，仅供首页使用。
  */
 
@@ -62,12 +64,15 @@ function initScene(canvas) {
   const DOOR = { x: 18, w: 2, h: 3 };
   const DURATION = 10;
   const KEY_T = 5.6; // 拿到钥匙的时刻
+  const DROP_T = 8.7; // 跳回地面后，把钥匙放下的时刻
+  const DROP_X = 8.8; // 钥匙放在地面的位置（第一次 10 秒结束时它仍在这里）
+  const PICK_T = 3.3; // 第二次：现在的你路过钥匙、自动拾取的时刻
   const DOOR_T = 7.6; // 到达门口的时刻
   const ENTER_T = 8.6; // 走进门里的时刻
   const END_T = 9.4;
   const SPEED = 1.5;
 
-  // 第一次记录：拿到钥匙，但来不及走到门边
+  // 第一次记录：拿到钥匙，跳回地面放下，但来不及走到门边
   const runA = [
     { t: 0.0, x: 1.6, y: GROUND },
     { t: 2.2, x: 7.4, y: GROUND },
@@ -77,13 +82,15 @@ function initScene(canvas) {
     { t: KEY_T, x: KEY_POS.x, y: TIER },
     { t: 6.6, x: 13.2, y: TIER },
     { t: 7.4, x: 10.4, y: TIER, arc: 1.8 },
-    { t: 8.4, x: 8.8, y: GROUND, arc: 1.4 },
+    { t: 8.4, x: DROP_X, y: GROUND, arc: 1.4 },
+    { t: DROP_T, x: DROP_X, y: GROUND }, // 落地后停顿一下，把钥匙放到地上
     { t: DURATION, x: 11.6, y: GROUND },
   ];
 
-  // 第二次：分身去取钥匙，现在的你直奔大门
+  // 第二次：分身重演，现在的你路过捡起钥匙，直奔大门
   const runB = [
     { t: 0.0, x: 1.6, y: GROUND },
+    { t: PICK_T, x: DROP_X, y: GROUND },
     { t: DOOR_T, x: DOOR.x + 0.2, y: GROUND },
     { t: ENTER_T, x: DOOR.x + 1.0, y: GROUND },
   ];
@@ -149,7 +156,7 @@ function initScene(canvas) {
           x: a.x + dx * u,
           y: a.y + (b.y - a.y) * u - lift,
           dir: dx === 0 ? 1 : Math.sign(dx),
-          moving: true,
+          moving: dx !== 0 || b.y !== a.y,
           lift,
         };
       }
@@ -267,6 +274,15 @@ function initScene(canvas) {
     ctx.lineTo(px + cell * 0.11 * scale, py + cell * 0.18 * scale);
     ctx.stroke();
     ctx.restore();
+  }
+
+  // 放在地面上的钥匙；settle 为放下后的经过时间，用于落地轻微弹跳
+  function keyOnGround(settle) {
+    let lift = 0;
+    if (settle > 0 && settle < 0.6) {
+      lift = Math.abs(Math.sin(settle * 12)) * 0.22 * (1 - settle / 0.6);
+    }
+    key(DROP_X, GROUND - 0.72 - lift, 1, AMBER);
   }
 
   function figure(x, y, opts) {
@@ -414,49 +430,77 @@ function initScene(canvas) {
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
 
-    const unlocked = (phase === 'replay' || phase === 'clear') && t >= KEY_T;
+    // 第二次里，现在的你捡到钥匙后，门解锁发光
+    const heroHasKey = (phase === 'replay' || phase === 'clear') && t >= PICK_T;
 
     spawnMark();
     slab(0, GROUND, COLS, ROWS);
     slab(TIER_A[0], TIER, TIER_A[1] + 1, TIER + 1);
     slab(TIER_B[0], TIER, TIER_B[1] + 1, TIER + 1);
-    door(unlocked);
-
-    if (t < KEY_T) {
-      const bob = Math.sin((t + phaseTime) * 2.2) * 0.5 + 0.5;
-      key(KEY_POS.x, KEY_POS.y - 0.75 - bob * 0.12, 1, AMBER);
-    }
+    door(heroHasKey);
 
     drawTrail();
 
     if (phase === 'record') {
+      // 钥匙：台上 → 被携带 → 放在地面
+      if (t < KEY_T) {
+        const bob = Math.sin((t + phaseTime) * 2.2) * 0.5 + 0.5;
+        key(KEY_POS.x, KEY_POS.y - 0.75 - bob * 0.12, 1, AMBER);
+      } else if (t >= DROP_T) {
+        keyOnGround(t - DROP_T);
+      }
       const p = posAt(runA, t);
       const py = walkY(p, t);
       figure(p.x, py, { dir: p.dir, lean: p.moving ? p.dir * 0.05 : 0 });
-      if (t >= KEY_T) key(p.x, py - 3.05, 0.66, AMBER);
+      if (t >= KEY_T && t < DROP_T) key(p.x, py - 3.05, 0.66, AMBER);
       recDot(0.25, 0.7, Math.floor(phaseTime * 2) % 2 === 0, RED, 'REC');
     } else if (phase === 'rewind') {
+      // 倒带时，钥匙留在第一次 10 秒结束时的位置
+      keyOnGround(0);
       const p1 = posAt(runA, Math.min(DURATION, t + 0.5));
       const p2 = posAt(runA, Math.min(DURATION, t + 0.25));
       figure(p1.x, p1.y, { alpha: 0.1, dir: p1.dir });
       figure(p2.x, p2.y, { alpha: 0.2, dir: p2.dir });
       const p = posAt(runA, t);
       figure(p.x, p.y, { dir: p.dir });
-      if (t >= KEY_T) key(p.x, p.y - 3.05, 0.66, AMBER);
       scanlines();
       stamp('时间到', 11, 3.2, RED, -0.08, Math.max(0, 1 - phaseTime / 1.1));
     } else {
-      // replay / clear：分身重演，现在的你直奔大门
+      // replay / clear：分身重演（不再带钥匙），现在的你捡钥匙直奔大门
       const g = posAt(runA, t);
       const gy = walkY(g, t);
       figure(g.x, gy, { ghost: true, dir: g.dir });
-      if (t >= KEY_T) key(g.x, gy - 3.05, 0.66, AMBER);
 
       const h = posAt(runB, t);
       const hy = walkY(h, t);
       const hAlpha = t <= DOOR_T ? 1 : Math.max(0, 1 - (t - DOOR_T) / (ENTER_T - DOOR_T));
       if (hAlpha > 0) {
         figure(h.x, hy, { dir: h.dir, alpha: hAlpha, lean: h.moving ? h.dir * 0.05 : 0 });
+      }
+
+      if (t < PICK_T) {
+        // 钥匙留在地上，轻轻浮动等待被捡起
+        const bob = Math.sin(phaseTime * 2.4) * 0.5 + 0.5;
+        key(DROP_X, GROUND - 0.72 - bob * 0.08, 1, AMBER);
+      } else {
+        if (t < PICK_T + 0.35) {
+          // 拾取瞬间的小光圈
+          const u = (t - PICK_T) / 0.35;
+          ctx.save();
+          ctx.globalAlpha = 1 - u;
+          ctx.strokeStyle = AMBER;
+          ctx.lineWidth = lw(0.05);
+          ctx.beginPath();
+          ctx.arc(X(DROP_X), Y(GROUND - 0.8), cell * (0.2 + u * 0.5), 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.restore();
+        }
+        if (hAlpha > 0) {
+          ctx.save();
+          ctx.globalAlpha = hAlpha;
+          key(h.x, hy - 3.05, 0.66, AMBER);
+          ctx.restore();
+        }
       }
 
       if (phase === 'replay') {
@@ -487,9 +531,9 @@ function initScene(canvas) {
     door(true);
     const g = posAt(runA, 6.4);
     figure(g.x, g.y, { ghost: true, dir: g.dir });
-    key(g.x, g.y - 3.05, 0.66, AMBER);
     const h = posAt(runB, 6.4);
     figure(h.x, h.y, { dir: h.dir });
+    key(h.x, h.y - 3.05, 0.66, AMBER); // 现在的你带着钥匙走向大门
     tag('过去的你', g.x, g.y - 3.55, BLUE, 1);
     tag('现在的你', h.x, h.y - 3.55, INK, 1);
   }
