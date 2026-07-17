@@ -34,3 +34,4 @@ docs/PLAN.md
 *.jpeg
 *.webp
 .aider*
+!packages/editor/public/qr-miniprogram.jpg
