@@ -5,104 +5,227 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="《十秒以后》个人独立游戏项目主页：了解项目，并进入开源关卡编辑器。"
+      content="《十秒以后 10 Seconds Later》：记录接下来十秒的行动，时间回溯之后，与过去的分身协作解谜。个人独立游戏，持续开发中，关卡编辑器已开放。"
     />
-    <meta name="theme-color" content="#080b18" />
-    <title>十秒以后 · 个人独立游戏实验</title>
+    <meta name="theme-color" content="#f3efe4" />
+    <meta property="og:title" content="十秒以后 10 Seconds Later" />
+    <meta
+      property="og:description"
+      content="记录十秒，倒带，再和过去的自己一起走到门边。"
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="zh_CN" />
+    <title>十秒以后 10 Seconds Later · 记录十秒，与过去的自己协作解谜</title>
     <link rel="stylesheet" href="/src/home.css" />
+    <script type="module" src="/src/home.js"></script>
   </head>
   <body>
     <a class="skip-link" href="#main">跳到主要内容</a>
 
-    <div class="page-shell">
-      <header class="site-header">
-        <a class="wordmark" href="/" aria-label="十秒以后首页">
-          <span class="wordmark-dot" aria-hidden="true"></span>
-          <span>10 SECONDS LATER</span>
-        </a>
+    <header class="site-head">
+      <a class="brand" href="/" aria-label="十秒以后首页">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span class="brand-name">十秒以后</span>
+        <span class="brand-en" aria-hidden="true">10 SECONDS LATER</span>
+      </a>
+      <nav class="site-nav" aria-label="站点导航">
+        <a href="/editor/">关卡编辑器</a>
         <a
-          class="github-link"
           href="https://github.com/sowhut/10SecondsLaterGenerate"
           target="_blank"
           rel="noreferrer"
         >
-          GitHub
-          <span aria-hidden="true">↗</span>
+          GitHub<span aria-hidden="true"> ↗</span>
         </a>
-      </header>
+      </nav>
+    </header>
 
-      <main id="main">
-        <section class="hero" aria-labelledby="hero-title">
-          <div class="hero-copy">
-            <p class="eyebrow"><span aria-hidden="true"></span>个人独立游戏实验 · 持续制作中</p>
-            <h1 id="hero-title">
-              十秒以后，
-              <span>再和过去的自己见面。</span>
-            </h1>
-            <p class="intro">
-              这是一个关于时间回放与协作解谜的个人项目。记录十秒，留下一个分身，
-              再用下一次行动与曾经的自己一起找到出口。
-            </p>
-            <div class="hero-actions">
-              <a class="primary-action" href="/editor/">
-                进入关卡编辑器
-                <span aria-hidden="true">→</span>
-              </a>
-              <a
-                class="secondary-action"
-                href="https://github.com/sowhut/10SecondsLaterGenerate"
-                target="_blank"
-                rel="noreferrer"
-              >
-                查看开源项目
-              </a>
-            </div>
-            <p class="editor-note">编辑器仍在开发中，草稿仅保存在当前浏览器。</p>
+    <main id="main">
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="hero-copy">
+          <p class="kicker">
+            <span class="kicker-dot" aria-hidden="true"></span>个人独立游戏 · 开发中 · 第 01 稿
+          </p>
+          <h1 class="hero-title" id="hero-title">十秒以后</h1>
+          <p class="hero-en" aria-hidden="true">10 SECONDS LATER</p>
+          <p class="hero-lede">
+            记录接下来的十秒。时间倒回之后，过去的你会照原样再走一遍——这一次，你们一起走到门边。
+          </p>
+          <div class="hero-cta">
+            <a class="btn-ink" href="/editor/">进入关卡编辑器<span aria-hidden="true"> →</span></a>
+            <a
+              class="btn-ghost"
+              href="https://github.com/sowhut/10SecondsLaterGenerate"
+              target="_blank"
+              rel="noreferrer"
+            >
+              在 GitHub 围观
+            </a>
           </div>
+        </div>
 
-          <div
-            class="scene-frame"
-            role="img"
-            aria-label="角色与过去的分身在十秒循环中共同前进的抽象场景"
-          >
-            <div class="scene-grid" aria-hidden="true"></div>
-            <div class="orbit orbit-one" aria-hidden="true"></div>
-            <div class="orbit orbit-two" aria-hidden="true"></div>
-            <div class="time-mark" aria-hidden="true">
-              <strong>10</strong>
-              <span>SECONDS</span>
+        <figure class="scene" aria-labelledby="scene-cap">
+          <div class="scene-paper">
+            <canvas
+              data-scene
+              role="img"
+              aria-label="循环示意图：小人走过两层平台拿到钥匙，十秒用尽；时间倒带后，过去的分身重演这段路去取钥匙，现在的你直接走向被打开的大门。"
+            ></canvas>
+            <noscript>
+              <p class="scene-noscript">
+                这张草图需要启用 JavaScript 才能动起来：它会演示「记录 → 回溯 → 与分身协作」的一次完整循环。
+              </p>
+            </noscript>
+          </div>
+          <div class="ruler">
+            <span class="ruler-status" data-status data-phase="record">● REC · 记录中</span>
+            <button class="ruler-toggle" type="button" data-anim-toggle aria-pressed="false" hidden>
+              暂停动画
+            </button>
+            <div class="ruler-track" aria-hidden="true">
+              <span class="ruler-playhead" data-playhead></span>
             </div>
-            <div class="door" aria-hidden="true"><span></span></div>
-            <div class="platform platform-high" aria-hidden="true"></div>
-            <div class="platform platform-low" aria-hidden="true"></div>
-            <div class="traveler traveler-past" aria-hidden="true"><i></i></div>
-            <div class="traveler traveler-now" aria-hidden="true"><i></i></div>
-            <div class="scene-caption" aria-hidden="true">
+            <div class="ruler-marks" aria-hidden="true">
               <span>00:00</span>
-              <span class="timeline"><i></i></span>
+              <span>00:05</span>
               <span>00:10</span>
             </div>
           </div>
-        </section>
+          <figcaption class="scene-cap" id="scene-cap">
+            图 01 — 一次完整的循环：记录 → 回溯 → 重逢。
+          </figcaption>
+        </figure>
+      </section>
 
-        <section class="project-note" aria-labelledby="project-note-title">
-          <div>
-            <p class="section-index">PROJECT NOTE / 001</p>
-            <h2 id="project-note-title">一个慢慢长出来的个人世界</h2>
-          </div>
-          <p>
-            目前开放的是浏览器关卡编辑器：你可以搭建场景、保存本地草稿，
-            并随着项目后续迭代逐步体验完整的关卡试玩与分享流程。
+      <section class="loop" aria-labelledby="loop-title">
+        <header class="section-head" data-reveal>
+          <p class="kicker"><span class="kicker-dot" aria-hidden="true"></span>HOW IT WORKS · 玩法</p>
+          <h2 id="loop-title">十秒，被折成两段。</h2>
+          <p class="section-lede">你只有十秒。但十秒，可以叠在十秒上。</p>
+        </header>
+        <ol class="steps">
+          <li class="step" data-reveal style="--rot: -0.4deg">
+            <span class="step-no" aria-hidden="true">01</span>
+            <svg class="step-icon" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+              <path
+                d="M4 52h18"
+                stroke="currentColor"
+                stroke-width="3"
+                stroke-linecap="round"
+                stroke-dasharray="0.5 7"
+              />
+              <rect x="26" y="24" width="15" height="26" rx="7" fill="currentColor" />
+              <circle cx="31" cy="33" r="1.6" fill="#f3efe4" />
+              <circle cx="36.5" cy="33" r="1.6" fill="#f3efe4" />
+              <circle cx="52" cy="15" r="5" fill="#bd3a2c" />
+            </svg>
+            <h3>记录</h3>
+            <p>你只管往前走。这十秒里的每一步，纸都记得。</p>
+          </li>
+          <li class="step" data-reveal style="--rot: 0.35deg">
+            <span class="step-no" aria-hidden="true">02</span>
+            <svg class="step-icon" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+              <path
+                d="M32 14a18 18 0 1 1-18 22"
+                stroke="currentColor"
+                stroke-width="3"
+                stroke-linecap="round"
+                stroke-dasharray="2 6"
+              />
+              <path
+                d="M14 30v8h8"
+                stroke="currentColor"
+                stroke-width="3"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+            <h3>回溯</h3>
+            <p>十秒一到，世界倒带。钥匙回到原处，你回到起点。</p>
+          </li>
+          <li class="step" data-reveal style="--rot: -0.3deg">
+            <span class="step-no" aria-hidden="true">03</span>
+            <svg class="step-icon" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+              <rect x="10" y="26" width="15" height="26" rx="7" fill="currentColor" />
+              <rect
+                x="34"
+                y="18"
+                width="15"
+                height="26"
+                rx="7"
+                stroke="#2e4fa3"
+                stroke-width="2.5"
+                stroke-dasharray="4 4"
+              />
+              <path
+                d="M25 39h9"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-dasharray="1 5"
+              />
+            </svg>
+            <h3>重逢</h3>
+            <p>过去的你分毫不差地重演，现在的你重新出发。一个人来不及的事，两个人刚好。</p>
+          </li>
+        </ol>
+      </section>
+
+      <section class="notes" aria-labelledby="notes-title">
+        <header class="section-head" data-reveal>
+          <p class="kicker"><span class="kicker-dot" aria-hidden="true"></span>FIELD NOTES · 批注</p>
+          <h2 id="notes-title">纸页边缘写着的规则。</h2>
+        </header>
+        <ul class="notes-grid">
+          <li data-reveal style="--rot: -0.5deg">
+            <span class="note-no">批注 01</span>
+            <p>一次记录是 600 步，正好十秒。每一次，都一样长。</p>
+          </li>
+          <li data-reveal style="--rot: 0.4deg">
+            <span class="note-no">批注 02</span>
+            <p>分身不思考，只重复。它走得多准，取决于你上次走得多认真。</p>
+          </li>
+          <li data-reveal style="--rot: 0.35deg">
+            <span class="note-no">批注 03</span>
+            <p>钥匙、门、炸弹、两层高台。道具不多，够摆出一个谜题就好。</p>
+          </li>
+          <li data-reveal style="--rot: -0.35deg">
+            <span class="note-no">批注 04</span>
+            <p>每一关都是一张草图。画坏了，擦掉重画。</p>
+          </li>
+          <li class="note-wide" data-reveal>
+            <span class="note-no">批注 05</span>
+            <p>草稿只存在这台浏览器里——像真正的草稿一样。</p>
+          </li>
+        </ul>
+      </section>
+
+      <section class="handoff" aria-labelledby="handoff-title">
+        <div class="handoff-inner" data-reveal>
+          <p class="kicker"><span class="kicker-dot" aria-hidden="true"></span>YOUR TURN · 轮到你</p>
+          <h2 id="handoff-title">这一页，留给你。</h2>
+          <p class="section-lede">
+            关卡编辑器已经开放。搭一座两层的高台，藏一把钥匙，看看十秒够不够用。
           </p>
-        </section>
-      </main>
+          <div class="handoff-cta">
+            <a class="btn-ink" href="/editor/">进入关卡编辑器<span aria-hidden="true"> →</span></a>
+            <a
+              class="btn-ghost"
+              href="https://github.com/sowhut/10SecondsLaterGenerate"
+              target="_blank"
+              rel="noreferrer"
+            >
+              查看开源项目
+            </a>
+          </div>
+          <p class="handoff-note">编辑器仍在开发中，草稿仅保存在当前浏览器。</p>
+        </div>
+      </section>
+    </main>
 
-      <footer class="site-footer">
-        <span>© 2026 10 Seconds Later · 个人项目</span>
-        <a href="https://beian.miit.gov.cn/" target="_blank" rel="noreferrer">
-          京ICP备2025111566号
-        </a>
-      </footer>
-    </div>
+    <footer class="site-foot">
+      <span>© 2026 十秒以后 · 个人项目</span>
+      <a href="https://beian.miit.gov.cn/" target="_blank" rel="noreferrer">京ICP备2025111566号</a>
+    </footer>
   </body>
 </html>
