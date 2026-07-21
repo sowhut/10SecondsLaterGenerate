@@ -149,7 +149,7 @@ export function openPlaytest(def: LevelDef, cb: PlaytestCallbacks = {}): Playtes
       clearLoadingTimers();
       const won = !!data.won;
       panel.classList.toggle('won', won);
-      setStatus(won ? `✓ 通关！可投稿（M4）${data.steps ? ` · ${data.steps} 步` : ''}` : '未通关 · 返回编辑');
+      setStatus(won ? `✓ 通关！已解锁导出 · 投稿功能开发中${data.steps ? ` · ${data.steps} 步` : ''}` : '未通关 · 返回编辑');
       cb.onResult?.(won, data.steps);
       // Auto-return to the editor (there is no close button; result IS the keyboard/
       // gameplay-driven exit). Esc still works while the parent has focus.
