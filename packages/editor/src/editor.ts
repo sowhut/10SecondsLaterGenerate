@@ -9,7 +9,13 @@
  *   3. Sprites load from a configurable hosted endpoint (`CONFIG.SPRITE_BASE_URL`);
  *      missing art degrades to a labeled placeholder. No PNGs live in this repo.
  *
- * Playtest embed is wired through `./playtestEmbed`; export/submit remains M4.
+ * UI layer (2026 redesign): the canvas interaction, placement, mutation and draft logic
+ * below is unchanged; the surrounding DOM was rebuilt as a "paper drafting table" workbench:
+ *   - `./toolCatalog` is the single registration point for placeable tools (grouped by
+ *     category in the left library — add one entry there to add a prop).
+ *   - The right inspector is split into Selection / Level / Validation / Publish panels;
+ *     the Publish panel owns the visible playtest→export gating and the future level-
+ *     submission entry point (currently a "coming soon" dialog, no network).
  */
 import {
   type LevelDef,
@@ -28,7 +34,6 @@ import {
   RIG_COLORS,
   THEMES,
   DOOR_GLOW,
-  KIND_SIZE,
   surfaceRowForTier,
   groundTiles,
   tier2Tiles,
@@ -45,6 +50,7 @@ import { CONFIG } from './config';
 import { type LevelDoc, loadDocs, saveDocs, makeDefaultLevel, newDocId } from './drafts';
 import { MAX_LEVEL_JSON_BYTES, exportFilename, parseLevelJson, serializeLevelEnvelope } from './levelFiles';
 import { openPlaytest, isPlaytestConfigured } from './playtestEmbed';
+import { TOOL_CATEGORIES, TOOLS, toolForKind } from './toolCatalog';
 
 // --------------------------------------------------------------------------- types
 interface Rect {
@@ -52,17 +58,6 @@ interface Rect {
   y: number;
   w: number;
   h: number;
-}
-interface ToolDef {
-  id: string;
-  label: string;
-  sprite?: string;
-  singleton?: boolean;
-  arrayKey?: string;
-  w: number;
-  h: number;
-  support?: boolean;
-  terrain?: boolean;
 }
 interface EditorElement {
   id: string;
@@ -111,21 +106,8 @@ const COLORS = {
   void: '#050817',
 };
 
-// UI palette. Footprint sizes for OBJECT kinds come from schema `KIND_SIZE` (single
-// source of truth); terrain kinds (ground/platform) are editor-only tile sizes.
-const TOOLS: ToolDef[] = [
-  { id: 'spawn', label: '出生点', sprite: 'hero', singleton: true, support: true, ...KIND_SIZE.spawn },
-  { id: 'key', label: '钥匙', sprite: 'key', singleton: true, support: true, ...KIND_SIZE.key },
-  { id: 'door', label: '出口门', sprite: 'door_closed', singleton: true, support: true, ...KIND_SIZE.door },
-  { id: 'bomb', label: '炸弹', sprite: 'bomb', singleton: true, support: true, ...KIND_SIZE.bomb },
-  { id: 'box', label: '箱子', sprite: 'box', arrayKey: 'boxes', support: true, ...KIND_SIZE.box },
-  { id: 'spike', label: '尖刺', sprite: 'spikes', arrayKey: 'spikes', support: true, ...KIND_SIZE.spike },
-  { id: 'wall', label: '可破坏墙', sprite: 'tile_cracked', arrayKey: 'walls', support: true, ...KIND_SIZE.wall },
-  { id: 'stone', label: '石块', sprite: 'tile_block', arrayKey: 'stones', support: true, ...KIND_SIZE.stone },
-  { id: 'rig', label: '压力板+升降台', sprite: 'pressure_plate', support: true, ...KIND_SIZE.plate },
-  { id: 'platform', label: '平台板', sprite: 'tile_platform_thin', arrayKey: 'ledges', terrain: true, w: TILE_W, h: 1.5 },
-  { id: 'ground', label: '一层地块', sprite: 'tile_block', arrayKey: 'ground', terrain: true, w: TILE_W, h: 3 },
-];
+/** Kinds that are mandatory for a playable level — selectable/movable but not deletable. */
+const REQUIRED_KINDS = new Set(['spawn', 'key', 'door']);
 
 // --------------------------------------------------------------------------- state + DOM
 const state = {
@@ -141,6 +123,9 @@ const state = {
   storageError: null as string | null,
   fileNotice: null as string | null,
   fileNoticeError: false,
+  savedAt: null as Date | null,
+  /** Value of the notice text the user dismissed; a NEW notice re-shows the bar. */
+  dismissedNotice: null as string | null,
 };
 
 function q<T extends HTMLElement>(sel: string): T {
@@ -151,22 +136,32 @@ function q<T extends HTMLElement>(sel: string): T {
 
 const el = {
   canvas: q<HTMLCanvasElement>('#scene'),
-  toolList: q<HTMLElement>('#toolList'),
-  draftTitle: q<HTMLElement>('#draftTitle'),
-  storageHint: q<HTMLElement>('#storageHint'),
-  importFileInput: q<HTMLInputElement>('#importFileInput'),
-  importButton: q<HTMLButtonElement>('#importButton'),
-  exportButton: q<HTMLButtonElement>('#exportButton'),
-  cancelButton: q<HTMLButtonElement>('#cancelButton'),
-  pointerReadout: q<HTMLElement>('#pointerReadout'),
-  selectionSize: q<HTMLElement>('#selectionSize'),
+  toolLibrary: q<HTMLElement>('#toolLibrary'),
   draftSelect: q<HTMLSelectElement>('#draftSelect'),
+  saveState: q<HTMLElement>('#saveState'),
+  saveText: q<HTMLElement>('#saveText'),
   addDraftButton: q<HTMLButtonElement>('#addDraftButton'),
   cloneDraftButton: q<HTMLButtonElement>('#cloneDraftButton'),
   deleteDraftButton: q<HTMLButtonElement>('#deleteDraftButton'),
-  inspectorBody: q<HTMLElement>('#inspectorBody'),
-  validationList: q<HTMLElement>('#validationList'),
+  importButton: q<HTMLButtonElement>('#importButton'),
+  importFileInput: q<HTMLInputElement>('#importFileInput'),
   playtestButton: q<HTMLButtonElement>('#playtestButton'),
+  noticeBar: q<HTMLElement>('#noticeBar'),
+  noticeText: q<HTMLElement>('#noticeText'),
+  noticeClose: q<HTMLButtonElement>('#noticeClose'),
+  modeChip: q<HTMLElement>('#modeChip'),
+  modeText: q<HTMLElement>('#modeText'),
+  cancelButton: q<HTMLButtonElement>('#cancelButton'),
+  pointerReadout: q<HTMLElement>('#pointerReadout'),
+  selectionSize: q<HTMLElement>('#selectionSize'),
+  selectionBody: q<HTMLElement>('#selectionBody'),
+  levelBody: q<HTMLElement>('#levelBody'),
+  validationCount: q<HTMLElement>('#validationCount'),
+  validationList: q<HTMLElement>('#validationList'),
+  publishSteps: q<HTMLElement>('#publishSteps'),
+  exportButton: q<HTMLButtonElement>('#exportButton'),
+  exportHint: q<HTMLElement>('#exportHint'),
+  submitButton: q<HTMLButtonElement>('#submitButton'),
 };
 
 const ctx = el.canvas.getContext('2d') as CanvasRenderingContext2D;
@@ -187,6 +182,7 @@ function clone<T>(value: T): T {
 function persist(): boolean {
   const result = saveDocs(state.docs);
   state.storageError = result.ok ? null : result.error ?? '本地保存失败';
+  if (result.ok) state.savedAt = new Date();
   return result.ok;
 }
 function resetInteraction(): void {
@@ -203,7 +199,7 @@ function setDirty(dirty = true): void {
   renderAll();
 }
 
-// Per-draft "author beat THIS exact level" signatures. The playtest→submit unlock
+// Per-draft "author beat THIS exact level" signatures. The playtest→export unlock
 // (won:true) re-locks automatically on any edit, since the signature changes.
 const beaten = new Map<string, string>();
 function levelSignature(): string {
@@ -252,14 +248,6 @@ function ensureRigColors(def: LevelDef): void {
   (def.rigs ?? []).forEach((rig, index) => {
     if (!rig.color) rig.color = rigColor(index);
   });
-}
-
-// --------------------------------------------------------------------------- tools
-function toolForKind(kind: string): ToolDef {
-  if (kind === 'plate') return TOOLS.find((t) => t.id === 'rig')!;
-  if (kind === 'lift') return { id: 'lift', label: '升降台', sprite: 'lift', support: true, ...KIND_SIZE.lift };
-  if (kind === 'tier2tile') return { id: 'tier2tile', label: '二层平台板', sprite: 'tile_platform_thin', terrain: true, w: TILE_W, h: 1.5 };
-  return TOOLS.find((t) => t.id === kind) ?? { id: kind, label: kind, w: 1, h: 1 };
 }
 
 // --------------------------------------------------------------------------- sprites
@@ -718,7 +706,7 @@ function deleteSelected(): void {
   const item = selectedItem();
   const def = level() as any;
   if (!item) return;
-  if (item.kind === 'spawn' || item.kind === 'key' || item.kind === 'door') return;
+  if (REQUIRED_KINDS.has(item.kind)) return;
   if (item.implicit && item.kind === 'ground') materializeGround(def);
   if (item.implicit && item.kind === 'tier2tile') materializeTier2(def);
   if (item.kind === 'ground') def.ground.splice(item.index!, 1);
@@ -852,7 +840,126 @@ function exportCurrentDraft(): void {
     state.fileNoticeError = true;
     state.fileNotice = `导出失败：${error instanceof Error ? error.message : String(error)}`;
   }
-  renderHeader();
+  renderAll();
+}
+
+// --------------------------------------------------------------------------- dialogs
+interface DialogAction {
+  label: string;
+  className: string;
+  onClick?: () => void;
+}
+interface ActiveDialog {
+  overlay: HTMLElement;
+  panel: HTMLElement;
+  opener: HTMLElement | null;
+}
+let activeDialog: ActiveDialog | null = null;
+
+function closeDialog(): void {
+  if (!activeDialog) return;
+  activeDialog.overlay.remove();
+  const opener = activeDialog.opener;
+  activeDialog = null;
+  opener?.focus();
+}
+
+/**
+ * Minimal modal dialog (delete-draft confirm, submission placeholder). Esc / backdrop
+ * click closes; focus is trapped in the panel and restored to the opener afterwards.
+ */
+function openDialog(title: string, build: (body: HTMLElement) => void, actions: DialogAction[]): void {
+  closeDialog();
+  const overlay = document.createElement('div');
+  overlay.className = 'dialog-overlay';
+  const panel = document.createElement('div');
+  panel.className = 'dialog-panel';
+  panel.setAttribute('role', 'dialog');
+  panel.setAttribute('aria-modal', 'true');
+  panel.tabIndex = -1;
+  const head = document.createElement('h3');
+  head.className = 'dialog-title';
+  head.textContent = title;
+  const body = document.createElement('div');
+  body.className = 'dialog-body';
+  build(body);
+  const foot = document.createElement('div');
+  foot.className = 'dialog-actions';
+  for (const action of actions) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = action.className;
+    button.textContent = action.label;
+    button.addEventListener('click', () => {
+      closeDialog();
+      action.onClick?.();
+    });
+    foot.append(button);
+  }
+  panel.append(head, body, foot);
+  overlay.append(panel);
+  overlay.addEventListener('mousedown', (event) => {
+    if (event.target === overlay) closeDialog();
+  });
+  overlay.addEventListener('keydown', (event) => {
+    if (event.key !== 'Tab') return;
+    const focusables = Array.from(panel.querySelectorAll<HTMLElement>('button, [href], input, select, textarea'));
+    if (!focusables.length) return;
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      last.focus();
+      event.preventDefault();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      first.focus();
+      event.preventDefault();
+    }
+  });
+  activeDialog = { overlay, panel, opener: document.activeElement as HTMLElement | null };
+  document.body.append(overlay);
+  (foot.querySelector('button') ?? panel).focus();
+}
+
+function confirmDeleteDraft(): void {
+  openDialog(
+    '删除草稿',
+    (body) => {
+      body.textContent = `删除草稿「${level().name}」？此操作只影响本地草稿，且不可撤销。`;
+    },
+    [
+      { label: '取消', className: 'btn btn-sm btn-ghost' },
+      { label: '删除', className: 'btn btn-sm btn-danger', onClick: deleteDraft },
+    ],
+  );
+}
+
+/** Future submission entry — intentionally a static dialog: no network, no fake state. */
+function openSubmitDialog(): void {
+  const valid = validateLevel(level()).length === 0;
+  const unlocked = playtestUnlocked();
+  openDialog(
+    '投稿关卡',
+    (body) => {
+      const intro = document.createElement('p');
+      intro.style.margin = '0';
+      intro.textContent = '投稿功能正在开发中，敬请期待。未来你的关卡将通过以下流程进入社区：';
+      const list = document.createElement('ol');
+      for (const text of [
+        `修正结构问题，通过校验${valid ? '（已完成 ✓）' : '（当前还有未解决的问题）'}`,
+        `在真实沙箱中试玩并通关${unlocked ? '（已完成 ✓）' : '（尚未完成）'}`,
+        '提交投稿，等待维护者审核（即将开放）',
+      ]) {
+        const item = document.createElement('li');
+        item.textContent = text;
+        list.append(item);
+      }
+      const note = document.createElement('p');
+      note.style.margin = '10px 0 0';
+      note.textContent = '现阶段可以使用「导出关卡 JSON」保存作品，或把文件分享给维护者。';
+      body.append(intro, list, note);
+    },
+    [{ label: '我知道了', className: 'btn btn-sm btn-ink' }],
+  );
 }
 
 // --------------------------------------------------------------------------- inspector UI
@@ -881,48 +988,244 @@ function field(label: string, value: string | number, onChange: (v: any) => void
   wrap.append(lab, input);
   return wrap;
 }
+
 function placedObjectCount(def: LevelDef): number {
   return elementsForLevel(def).filter((item) => !['ground', 'tier2tile', 'platform'].includes(item.kind)).length;
 }
-function renderInspector(): void {
-  el.inspectorBody.innerHTML = '';
-  const def = level();
-  const card = document.createElement('div');
-  card.className = 'inspector-card';
 
+// ---------- topbar: draft switcher + save state ----------
+function renderTopbar(): void {
+  el.draftSelect.innerHTML = '';
+  state.docs.forEach((doc, index) => {
+    const option = document.createElement('option');
+    option.value = String(index);
+    option.textContent = `${index + 1}. ${doc.sourceId ? `[${doc.sourceId}] ` : ''}${doc.level.name || doc.name}`;
+    el.draftSelect.append(option);
+  });
+  el.draftSelect.value = String(state.docIndex);
+
+  if (state.storageError) {
+    el.saveState.dataset.state = 'error';
+    el.saveText.textContent = '保存失败 · 将自动重试';
+  } else {
+    el.saveState.dataset.state = 'saved';
+    const time = state.savedAt?.toLocaleTimeString('zh-CN', { hour12: false, hour: '2-digit', minute: '2-digit' });
+    el.saveText.textContent = time ? `已自动保存 ${time}` : '已自动保存';
+  }
+}
+
+// ---------- notice bar: storage errors + import/export feedback ----------
+function renderNotice(): void {
+  const text = state.storageError ?? state.fileNotice;
+  const isError = Boolean(state.storageError) || state.fileNoticeError;
+  if (!text || text === state.dismissedNotice) {
+    el.noticeBar.hidden = true;
+    return;
+  }
+  el.noticeBar.hidden = false;
+  el.noticeBar.dataset.kind = isError ? 'error' : 'info';
+  el.noticeText.textContent = text;
+}
+
+// ---------- tool library (grouped by toolCatalog categories) ----------
+function spriteSwatch(sprite?: string): HTMLElement {
+  const span = document.createElement('span');
+  span.className = 'tool-swatch';
+  if (sprite) {
+    const img = document.createElement('img');
+    img.alt = '';
+    img.src = `${CONFIG.SPRITE_BASE_URL}/${sprite}.png`;
+    img.addEventListener('error', () => {
+      span.classList.add('missing');
+      span.textContent = sprite;
+    });
+    span.append(img);
+  }
+  return span;
+}
+
+function renderToolLibrary(): void {
+  el.toolLibrary.innerHTML = '';
+  const rigCount = level().rigs?.length ?? 0;
+  for (const category of TOOL_CATEGORIES) {
+    const tools = TOOLS.filter((tool) => tool.category === category.id);
+    if (!tools.length) continue;
+    const group = document.createElement('div');
+    group.className = 'tool-group';
+    const head = document.createElement('div');
+    head.className = 'tool-group-head';
+    const title = document.createElement('h3');
+    title.textContent = category.label;
+    const en = document.createElement('span');
+    en.className = 'tool-group-en';
+    en.textContent = category.en;
+    head.append(title, en);
+    group.append(head);
+
+    for (const tool of tools) {
+      const isRig = tool.id === 'rig';
+      const rigFull = isRig && rigCount >= MAX_RIGS;
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = `tool-item${state.activeTool === tool.id ? ' active' : ''}`;
+      button.disabled = rigFull;
+      button.setAttribute('aria-pressed', state.activeTool === tool.id ? 'true' : 'false');
+
+      const text = document.createElement('span');
+      text.className = 'tool-text';
+      const strong = document.createElement('strong');
+      strong.textContent = tool.label;
+      const meta = document.createElement('span');
+      meta.className = 'tool-meta';
+      if (isRig) {
+        const dot = document.createElement('span');
+        dot.className = 'rig-dot';
+        dot.style.setProperty('--rig-color', nextRigColor(level()));
+        meta.append(dot, document.createTextNode(rigFull ? `已达上限 ${MAX_RIGS}/${MAX_RIGS} 组` : `板 ${tool.w}×${tool.h} / 台 3×1 · 已建 ${rigCount}/${MAX_RIGS} 组`));
+      } else {
+        meta.textContent = `${tool.w} × ${tool.h} 格`;
+      }
+      const hint = document.createElement('span');
+      hint.className = 'tool-hint';
+      hint.textContent = rigFull ? '删除一组机关后可再次放置' : tool.hint;
+      text.append(strong, meta, hint);
+      button.append(spriteSwatch(tool.sprite), text);
+      button.addEventListener('click', () => startCreate(tool.id));
+      group.append(button);
+    }
+    el.toolLibrary.append(group);
+  }
+
+  // Placeholder for future props — a visible slot, not a fake feature.
+  const soon = document.createElement('div');
+  soon.className = 'coming-soon';
+  soon.textContent = '更多道具正在设计中，后续会直接加入上方对应分类。';
+  const soonEn = document.createElement('span');
+  soonEn.className = 'soon-en';
+  soonEn.textContent = 'MORE PROPS · COMING SOON';
+  soon.append(soonEn);
+  el.toolLibrary.append(soon);
+}
+
+// ---------- mode bar: what is the canvas doing right now ----------
+function renderModeBar(): void {
+  const pending = state.pending;
+  el.cancelButton.hidden = !pending;
+  if (!pending) {
+    const item = selectedItem();
+    el.modeChip.dataset.mode = 'select';
+    el.modeChip.textContent = '选择';
+    el.modeText.removeAttribute('data-valid');
+    el.modeText.textContent = item
+      ? `已选中「${item.label}」— 点击物件开始移动，或按 Delete 删除`
+      : '点击画布中的物件进行选择或移动；从左侧道具库选择道具后放置';
+    return;
+  }
+  const tool = toolForKind(pending.kind);
+  const moving = pending.mode === 'move' ? selectedItem() : null;
+  const label = moving?.label ?? tool.label;
+  el.modeChip.dataset.mode = pending.mode === 'create' ? 'place' : 'move';
+  el.modeChip.textContent = pending.mode === 'create' ? '放置' : '移动';
+  let text = pending.mode === 'create' ? `正在放置「${label}」— 点击画布放下，Esc 取消` : `正在移动「${label}」— 点击新位置放下，Esc 还原`;
+  if (state.hover) {
+    text += state.hover.valid ? ' · 当前位置可放置 ✓' : ' · 当前位置不可放置 ✕';
+    el.modeText.dataset.valid = state.hover.valid ? 'ok' : 'bad';
+  } else {
+    el.modeText.removeAttribute('data-valid');
+  }
+  el.modeText.textContent = text;
+}
+
+// ---------- selection panel ----------
+function renderSelection(): void {
+  el.selectionBody.innerHTML = '';
+  const item = selectedItem();
+  if (!item) {
+    const empty = document.createElement('div');
+    empty.className = 'sel-empty';
+    const lead = document.createElement('strong');
+    lead.textContent = '未选中任何物件';
+    empty.append(
+      lead,
+      document.createElement('br'),
+      document.createTextNode('· 点击画布中的物件进行选择或移动'),
+      document.createElement('br'),
+      document.createTextNode('· 从左侧道具库选择道具，在画布放置'),
+      document.createElement('br'),
+      document.createTextNode('· Esc 取消放置 · Delete 删除选中'),
+    );
+    el.selectionBody.append(empty);
+    return;
+  }
+  const size = itemSize(item);
   const head = document.createElement('div');
-  head.className = 'level-card-head';
-  const title = document.createElement('div');
+  head.className = 'sel-card-head';
   const name = document.createElement('strong');
-  name.textContent = def.name;
-  const meta = document.createElement('span');
-  meta.textContent = `第 ${state.docIndex + 1} / ${state.docs.length} 个草稿${currentDoc().sourceId ? ` · 来源 ${currentDoc().sourceId}` : ''}`;
-  title.append(name, meta);
-  const dirty = document.createElement('span');
-  dirty.textContent = state.dirty ? '未保存*' : '已存本地';
-  head.append(title, dirty);
-  card.append(head);
+  name.textContent = item.label;
+  const kind = document.createElement('span');
+  kind.className = 'sel-kind';
+  kind.textContent = item.kind;
+  head.append(name, kind);
+
+  const meta = document.createElement('div');
+  meta.className = 'sel-meta';
+  const colText = item.kind === 'platform' ? `col ${item.obj.col0}–${item.obj.col1}` : `col ${item.obj.col}`;
+  const tierText = item.kind === 'ground' || item.kind === 'tier2tile' || item.kind === 'platform' ? `row ${item.obj.row ?? '—'}` : `tier ${item.obj.tier ?? item.obj.restTier ?? '—'}`;
+  meta.append(document.createTextNode(`尺寸 ${size.w} × ${size.h} 格`), document.createElement('br'), document.createTextNode(`位置 ${colText} · ${tierText}`));
+
+  el.selectionBody.append(head, meta);
+
+  if (REQUIRED_KINDS.has(item.kind)) {
+    const note = document.createElement('div');
+    note.className = 'sel-note';
+    note.textContent = '必需元素 · 不可删除，点击画布可直接移动位置';
+    el.selectionBody.append(note);
+  } else {
+    const actions = document.createElement('div');
+    actions.className = 'sel-actions';
+    const move = document.createElement('button');
+    move.type = 'button';
+    move.className = 'btn btn-sm';
+    move.textContent = '移动';
+    move.addEventListener('click', () => startMove(item));
+    const del = document.createElement('button');
+    del.type = 'button';
+    del.className = 'btn btn-sm btn-danger';
+    del.textContent = '删除';
+    del.addEventListener('click', deleteSelected);
+    actions.append(move, del);
+    el.selectionBody.append(actions);
+  }
+}
+
+// ---------- level panel ----------
+function renderLevelCard(): void {
+  el.levelBody.innerHTML = '';
+  const def = level();
+
+  el.levelBody.append(
+    field('关卡名', def.name, (v) => {
+      def.name = String(v);
+    }, { type: 'text' }),
+    field('分身数量（0–2）', def.clones, (v) => {
+      def.clones = Math.max(0, Math.min(2, Math.round(Number(v))));
+    }, { type: 'number' }),
+    field('背景主题', currentThemeName(def.theme), (v) => {
+      def.theme = { ...(THEMES[String(v)] ?? THEMES.indigo) };
+    }, { select: Object.keys(THEMES).map((name) => ({ value: name, label: name })) }),
+  );
 
   const stats = document.createElement('div');
-  stats.className = 'level-stats';
-  for (const text of [`${def.clones} 分身`, `${currentThemeName(def.theme)} 主题`, `${placedObjectCount(def)} 道具`, `${def.rigs?.length ?? 0}/${MAX_RIGS} 机关`]) {
+  stats.className = 'stat-chips';
+  const chips = [`道具 ${placedObjectCount(def)}`, `机关 ${def.rigs?.length ?? 0}/${MAX_RIGS}`, `分身 ${def.clones}`];
+  if (currentDoc().sourceId) chips.push(`来源 ${currentDoc().sourceId}`);
+  for (const text of chips) {
     const node = document.createElement('span');
     node.className = 'stat';
     node.textContent = text;
     stats.append(node);
   }
-  card.append(stats);
-
-  const pt = document.createElement('div');
-  pt.className = `playtest-hint${playtestUnlocked() ? ' won' : ''}`;
-  pt.textContent = !isPlaytestConfigured()
-    ? '试玩：未配置 SANDBOX_URL（部署 Cocos web 构建后可用）'
-    : validateLevel(def).length
-      ? '试玩：修正校验问题后可试玩'
-      : playtestUnlocked()
-        ? '✓ 已在真机通关 · 可投稿（M4）'
-        : '可试玩 —— 真机通关后解锁投稿（M4）';
-  card.append(pt);
+  el.levelBody.append(stats);
 
   if (def.rigs?.length) {
     const palette = document.createElement('div');
@@ -934,122 +1237,112 @@ function renderInspector(): void {
       chip.textContent = `机关 ${index + 1}`;
       palette.append(chip);
     });
-    card.append(palette);
-  }
-
-  card.append(
-    field('关卡名', def.name, (v) => {
-      def.name = String(v);
-    }, { type: 'text' }),
-    field('分身数', def.clones, (v) => {
-      def.clones = Math.max(0, Math.min(2, Math.round(Number(v))));
-    }, { type: 'number' }),
-    field('背景主题', currentThemeName(def.theme), (v) => {
-      def.theme = { ...(THEMES[String(v)] ?? THEMES.indigo) };
-    }, { select: Object.keys(THEMES).map((name) => ({ value: name, label: name })) }),
-  );
-
-  const item = selectedItem();
-  if (item) {
-    const selection = document.createElement('div');
-    selection.className = 'selection-panel';
-    const size = itemSize(item);
-    const sizeNode = document.createElement('div');
-    sizeNode.className = 'hint';
-    sizeNode.textContent = `选中：${item.label} · ${size.w} × ${size.h} 格`;
-    selection.append(sizeNode);
-    if (item.kind === 'spawn' || item.kind === 'key' || item.kind === 'door') {
-      const required = document.createElement('div');
-      required.className = 'hint';
-      required.textContent = '必需元素不可删除，可直接移动位置';
-      selection.append(required);
-    } else {
-      const actions = document.createElement('div');
-      actions.className = 'inline-actions';
-      const del = document.createElement('button');
-      del.className = 'danger';
-      del.textContent = '删除';
-      del.addEventListener('click', deleteSelected);
-      actions.append(del);
-      selection.append(actions);
-    }
-    card.append(selection);
-  }
-  el.inspectorBody.append(card);
-}
-
-function renderDrafts(): void {
-  el.draftSelect.innerHTML = '';
-  state.docs.forEach((doc, index) => {
-    const option = document.createElement('option');
-    option.value = String(index);
-    option.textContent = `${index + 1}. ${doc.sourceId ? `[${doc.sourceId}] ` : ''}${doc.level.name || doc.name}`;
-    el.draftSelect.append(option);
-  });
-  el.draftSelect.value = String(state.docIndex);
-  el.deleteDraftButton.disabled = false;
-}
-
-function spriteSwatch(sprite?: string, rigColorValue?: string): HTMLElement {
-  const span = document.createElement('span');
-  span.className = 'swatch';
-  if (!sprite) {
-    span.style.background = rigColorValue ?? COLORS.platform;
-    return span;
-  }
-  const img = document.createElement('img');
-  img.alt = '';
-  img.src = `${CONFIG.SPRITE_BASE_URL}/${sprite}.png`;
-  img.addEventListener('error', () => {
-    span.classList.add('missing');
-    span.textContent = sprite;
-  });
-  span.append(img);
-  return span;
-}
-function renderTools(): void {
-  el.toolList.innerHTML = '';
-  for (const tool of TOOLS) {
-    const isRig = tool.id === 'rig';
-    const rigFull = isRig && (level().rigs?.length ?? 0) >= MAX_RIGS;
-    const button = document.createElement('button');
-    button.className = `tool-item ${state.activeTool === tool.id ? 'active' : ''} ${isRig ? 'rig-tool' : ''}`.trim();
-    button.disabled = rigFull;
-    if (isRig) button.style.setProperty('--rig-color', nextRigColor(level()));
-    const meta = isRig ? `板 ${tool.w} × ${tool.h} / 台 3 × 1` : `${tool.w} × ${tool.h} 格`;
-    const text = document.createElement('span');
-    const strong = document.createElement('strong');
-    strong.textContent = tool.label;
-    const metaNode = document.createElement('div');
-    metaNode.className = 'tool-meta';
-    metaNode.textContent = rigFull ? `${MAX_RIGS}/${MAX_RIGS} 组` : meta;
-    text.append(strong, metaNode);
-    button.append(spriteSwatch(tool.sprite), text);
-    button.addEventListener('click', () => startCreate(tool.id));
-    el.toolList.append(button);
+    el.levelBody.append(palette);
   }
 }
 
+// ---------- validation panel ----------
 function renderValidation(): void {
   const issues = validateLevel(level());
   el.validationList.innerHTML = '';
+  el.validationCount.hidden = !issues.length;
+  el.validationCount.textContent = String(issues.length);
   if (!issues.length) {
     const ok = document.createElement('div');
-    ok.className = 'issue ok';
-    ok.textContent = '当前关卡通过校验（结构合法，不代表可通关）';
-    el.validationList.append(ok);
+    ok.className = 'issue-ok';
+    ok.textContent = '✓ 结构合法 · 通过 validateLevel 校验';
+    const note = document.createElement('p');
+    note.className = 'issue-note';
+    note.textContent = '结构合法 ≠ 一定可以通关 —— 需要在真实沙箱里试玩验证。';
+    el.validationList.append(ok, note);
     return;
   }
   for (const issue of issues) {
     const node = document.createElement('button');
-    node.className = 'issue bad';
+    node.type = 'button';
+    node.className = 'issue';
     node.textContent = issue.reason;
+    const hint = document.createElement('small');
+    hint.textContent = '点击定位并调整对应物件';
+    node.append(hint);
     node.addEventListener('click', () => {
       const item = elementsForLevel(level()).find((x) => x.id === issue.ref);
       if (item) startMove(item);
     });
     el.validationList.append(node);
   }
+}
+
+// ---------- publish panel: visible gating for playtest / export / submission ----------
+function renderPublish(): void {
+  const configured = isPlaytestConfigured();
+  const issueCount = validateLevel(level()).length;
+  const valid = issueCount === 0;
+  const unlocked = playtestUnlocked();
+
+  const steps: { title: string; sub: string; state: 'done' | 'current' | 'blocked' }[] = [
+    {
+      title: '结构校验通过',
+      sub: valid ? 'validateLevel 无待解决问题' : `还有 ${issueCount} 项问题 — 点击上方校验列表定位`,
+      state: valid ? 'done' : 'current',
+    },
+    {
+      title: '真实试玩并通关',
+      sub: !configured
+        ? '未配置试玩沙箱（VITE_SANDBOX_URL），部署 Cocos 构建后可用'
+        : !valid
+          ? '需先通过结构校验'
+          : unlocked
+            ? '已在真实引擎中通关当前内容'
+            : '点击右上角「试玩」；修改关卡后需重新通关',
+      state: unlocked ? 'done' : valid && configured ? 'current' : 'blocked',
+    },
+    {
+      title: '投稿审核 · 敬请期待',
+      sub: '投稿通道开发中；当前可导出 JSON 交给维护者',
+      state: 'blocked',
+    },
+  ];
+
+  el.publishSteps.innerHTML = '';
+  steps.forEach((step, index) => {
+    const li = document.createElement('li');
+    li.className = 'step';
+    li.dataset.state = step.state;
+    const num = document.createElement('span');
+    num.className = 'step-num';
+    num.textContent = String(index + 1);
+    const body = document.createElement('div');
+    body.className = 'step-body';
+    const title = document.createElement('strong');
+    title.textContent = step.title;
+    const sub = document.createElement('div');
+    sub.className = 'step-sub';
+    sub.textContent = step.sub;
+    body.append(title, sub);
+    li.append(num, body);
+    el.publishSteps.append(li);
+  });
+
+  el.exportButton.disabled = !(valid && unlocked);
+  el.exportHint.textContent = !valid
+    ? '导出前需通过结构校验。'
+    : !unlocked
+      ? '导出前需在真实沙箱中通关当前内容；任何修改都会重新锁定导出。'
+      : '已通过真实试玩验证 · 可导出标准 LevelEnvelope JSON。';
+}
+
+// ---------- topbar playtest action ----------
+function renderActions(): void {
+  const configured = isPlaytestConfigured();
+  const valid = validateLevel(level()).length === 0;
+  el.playtestButton.disabled = !(configured && valid);
+  el.playtestButton.textContent = playtestUnlocked() ? '重玩 ✓' : '试玩';
+  el.playtestButton.title = !configured
+    ? '未配置 VITE_SANDBOX_URL（游戏 web 构建端点）'
+    : !valid
+      ? '先修正校验问题再试玩（原因见右侧「发布准备」）'
+      : '在真实引擎沙箱里试玩本关（通关后解锁导出）';
 }
 
 function renderStatus(): void {
@@ -1062,54 +1355,37 @@ function renderStatus(): void {
   el.selectionSize.textContent = size ? `尺寸：${size.w} × ${size.h} 格` : '未选中';
 }
 
-function renderHeader(): void {
-  el.draftTitle.textContent = `${level().name}${state.dirty ? ' *' : ''}`;
-  el.storageHint.textContent = state.storageError ?? state.fileNotice ?? '本地草稿 · 已自动保存（不写游戏源码）';
-  el.storageHint.classList.toggle('storage-error', Boolean(state.storageError) || state.fileNoticeError);
-  el.storageHint.classList.toggle('file-notice', Boolean(state.fileNotice) && !state.fileNoticeError && !state.storageError);
-  el.cancelButton.hidden = !state.pending;
-}
-
-function renderActions(): void {
-  const configured = isPlaytestConfigured();
-  const valid = validateLevel(level()).length === 0;
-  el.playtestButton.disabled = !(configured && valid);
-  el.playtestButton.textContent = playtestUnlocked() ? '重玩 ✓' : '试玩';
-  el.playtestButton.title = !configured
-    ? '未配置 VITE_SANDBOX_URL（游戏 web 构建端点）'
-    : !valid
-      ? '先修正校验问题再试玩'
-      : '在真实引擎沙箱里试玩本关（通关后解锁投稿）';
-  el.exportButton.disabled = !(valid && playtestUnlocked());
-  el.exportButton.title = !valid
-    ? '先修正校验问题'
-    : !playtestUnlocked()
-      ? '必须在真实 Cocos 引擎中通关当前内容后才能导出'
-      : '导出标准 LevelEnvelope JSON';
-}
-
 function renderAll(): void {
   if (!state.docs.length) return;
-  renderHeader();
+  renderTopbar();
+  renderNotice();
   renderActions();
-  renderDrafts();
-  renderTools();
-  renderInspector();
+  renderToolLibrary();
+  renderModeBar();
+  renderSelection();
+  renderLevelCard();
   renderValidation();
+  renderPublish();
   renderStatus();
   draw();
 }
 
 // --------------------------------------------------------------------------- events + init
+function isFormTarget(target: EventTarget | null): boolean {
+  return target instanceof HTMLElement && Boolean(target.closest('input, select, textarea, [contenteditable="true"]'));
+}
+
 function wireEvents(): void {
   el.canvas.addEventListener('mousemove', (event) => {
     const point = canvasPoint(event);
     el.pointerReadout.textContent = `col ${point.col.toFixed(1)}, row ${point.row.toFixed(1)}`;
     state.hover = placementFromPointer(point);
+    if (state.pending) renderModeBar();
     draw();
   });
   el.canvas.addEventListener('mouseleave', () => {
     state.hover = null;
+    if (state.pending) renderModeBar();
     draw();
   });
   el.canvas.addEventListener('click', (event) => {
@@ -1130,6 +1406,11 @@ function wireEvents(): void {
   el.importButton.addEventListener('click', () => el.importFileInput.click());
   el.importFileInput.addEventListener('change', () => void importSelectedFile());
   el.exportButton.addEventListener('click', exportCurrentDraft);
+  el.submitButton.addEventListener('click', openSubmitDialog);
+  el.noticeClose.addEventListener('click', () => {
+    state.dismissedNotice = state.storageError ?? state.fileNotice;
+    renderNotice();
+  });
   el.playtestButton.addEventListener('click', () => {
     if (!canPlaytest()) return;
     const id = currentDoc().id;
@@ -1144,11 +1425,16 @@ function wireEvents(): void {
   el.draftSelect.addEventListener('change', () => selectDraft(Number(el.draftSelect.value)));
   el.addDraftButton.addEventListener('click', addDraft);
   el.cloneDraftButton.addEventListener('click', cloneDraft);
-  el.deleteDraftButton.addEventListener('click', () => {
-    if (window.confirm(`删除草稿「${level().name}」？`)) deleteDraft();
-  });
+  el.deleteDraftButton.addEventListener('click', confirmDeleteDraft);
   window.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape') cancelDraft();
+    if (event.key === 'Escape') {
+      if (activeDialog) closeDialog();
+      else cancelDraft();
+      return;
+    }
+    if ((event.key === 'Delete' || event.key === 'Backspace') && !activeDialog && !isFormTarget(event.target)) {
+      deleteSelected();
+    }
   });
 }
 

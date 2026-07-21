@@ -59,5 +59,6 @@ Without it, sprites gracefully degrade to labeled placeholder boxes.
 | `src/drafts.ts` | localStorage draft store + blank-level factory |
 | `src/levelFiles.ts` | defensive LevelDef/LevelEnvelope JSON import + canonical export |
 | `src/editor.ts` | canvas render + placement + inspector/validation UI (ported from the private generator) |
+| `src/toolCatalog.ts` | tool/prop registry — categories, labels, sprite + size hints (sizes still come from `@10s/schema`); add a new prop here |
 | `src/playtestEmbed.ts` | hosted Cocos iframe + playtest handshake/result lifecycle |
 | `src/main.ts` | editor TypeScript entry |

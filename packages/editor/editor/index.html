@@ -3,66 +3,134 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#050817" />
+    <meta name="theme-color" content="#f3efe4" />
     <title>十秒以后 · 关卡编辑器</title>
   </head>
   <body>
     <div id="app">
-      <aside class="sidebar">
-        <header>
-          <a class="brand" href="/">10 Seconds Later</a>
-          <div class="sub">关卡编辑器</div>
-        </header>
-        <section>
-          <h2>添加</h2>
-          <div id="toolList" class="tool-list"></div>
-        </section>
+      <!-- 顶栏：品牌 / 草稿状态 / 全局动作 -->
+      <header class="topbar">
+        <div class="topbar-brand">
+          <a class="brand" href="/" aria-label="返回十秒以后首页">
+            <span class="brand-mark" aria-hidden="true"></span>
+            <span class="brand-text">
+              <span class="brand-name">十秒以后</span>
+              <span class="brand-en">LEVEL EDITOR</span>
+            </span>
+          </a>
+          <a class="home-link" href="/">← 返回首页</a>
+        </div>
+
+        <div class="topbar-draft">
+          <label class="draft-label" for="draftSelect">当前草稿</label>
+          <select id="draftSelect" class="draft-select"></select>
+          <span id="saveState" class="save-state" role="status">
+            <span class="save-dot" aria-hidden="true"></span>
+            <span id="saveText">已自动保存</span>
+          </span>
+          <div class="draft-actions" role="group" aria-label="草稿操作">
+            <button id="addDraftButton" class="btn btn-sm" type="button">新建</button>
+            <button id="cloneDraftButton" class="btn btn-sm" type="button">克隆</button>
+            <button id="importButton" class="btn btn-sm" type="button">导入 JSON</button>
+            <button id="deleteDraftButton" class="btn btn-sm btn-danger" type="button">删除</button>
+          </div>
+        </div>
+
+        <div class="topbar-actions">
+          <button id="playtestButton" class="btn btn-primary" type="button" disabled>试玩</button>
+        </div>
+      </header>
+
+      <!-- 全局通知：存储失败 / 导入导出反馈 -->
+      <div id="noticeBar" class="notice-bar" role="alert" hidden>
+        <span id="noticeText"></span>
+        <button id="noticeClose" class="notice-close" type="button" aria-label="关闭通知">×</button>
+      </div>
+
+      <!-- 左栏：道具库 -->
+      <aside class="library" aria-label="道具库">
+        <div class="panel-head">
+          <h2>道具库</h2>
+          <span class="panel-en">PROPS</span>
+        </div>
+        <div id="toolLibrary" class="tool-library"></div>
       </aside>
 
-      <main class="stage-panel">
-        <div class="topbar">
-          <div>
-            <div id="draftTitle" class="title">加载中</div>
-            <div id="storageHint" class="path"></div>
-          </div>
-          <div class="actions">
-            <input id="importFileInput" type="file" accept=".json,application/json" hidden />
-            <button id="importButton" type="button">导入 JSON</button>
-            <button id="exportButton" type="button" disabled>导出 JSON</button>
-            <button id="cancelButton" type="button" hidden>取消放置</button>
-            <button id="playtestButton" type="button" disabled>试玩</button>
-          </div>
+      <!-- 中栏：画布工作区 -->
+      <main class="stage">
+        <div class="mode-bar">
+          <span id="modeChip" class="mode-chip" data-mode="select">选择</span>
+          <span id="modeText" class="mode-text">点击画布中的物件进行选择或移动</span>
+          <button id="cancelButton" class="btn btn-sm btn-ghost" type="button" hidden>取消放置 (Esc)</button>
         </div>
         <div class="canvas-wrap">
-          <canvas id="scene" width="1280" height="720"></canvas>
+          <figure class="canvas-frame">
+            <figcaption class="frame-head">
+              <span>FIG.1 · 关卡预览 PREVIEW</span>
+              <span class="frame-dims">50 × 26 GRID</span>
+            </figcaption>
+            <canvas id="scene" width="1280" height="720" aria-label="关卡画布"></canvas>
+          </figure>
         </div>
         <div class="statusbar">
-          <span id="pointerReadout">col -, row -</span>
+          <span id="pointerReadout" class="mono">col — , row —</span>
           <span id="selectionSize">未选中</span>
-          <span>画布：50 × 26</span>
+          <span class="statusbar-keys"><kbd>Esc</kbd> 取消 · <kbd>Delete</kbd> 删除选中</span>
         </div>
       </main>
 
-      <aside class="inspector">
-        <section>
-          <h2>草稿（本地）</h2>
-          <select id="draftSelect" class="level-select"></select>
-          <div class="level-actions">
-            <button id="addDraftButton" type="button">＋ 新建空白</button>
-            <button id="cloneDraftButton" type="button">⧉ 克隆</button>
-            <button id="deleteDraftButton" type="button" class="danger">－ 删除</button>
+      <!-- 右栏：检查器 -->
+      <aside class="inspector" aria-label="检查器">
+        <section class="panel">
+          <div class="panel-head">
+            <h2>选中物件</h2>
+            <span class="panel-en">SELECTION</span>
           </div>
+          <div id="selectionBody" class="panel-body"></div>
         </section>
-        <section>
-          <h2>关卡详情</h2>
-          <div id="inspectorBody" class="inspector-body"></div>
+
+        <section class="panel">
+          <div class="panel-head">
+            <h2>关卡属性</h2>
+            <span class="panel-en">LEVEL</span>
+          </div>
+          <div id="levelBody" class="panel-body"></div>
         </section>
-        <section>
-          <h2>校验</h2>
-          <div id="validationList" class="validation-list"></div>
+
+        <section class="panel">
+          <div class="panel-head">
+            <h2>结构校验</h2>
+            <span class="panel-en">VALIDATION</span>
+            <span id="validationCount" class="count-badge" hidden></span>
+          </div>
+          <div id="validationList" class="panel-body validation-list"></div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <h2>发布准备</h2>
+            <span class="panel-en">PUBLISH</span>
+          </div>
+          <div class="panel-body">
+            <ol id="publishSteps" class="publish-steps"></ol>
+            <div class="publish-actions">
+              <button id="exportButton" class="btn btn-ink" type="button" disabled>导出关卡 JSON</button>
+              <button id="submitButton" class="btn btn-ghost" type="button">
+                投稿关卡 <span class="soon-tag">敬请期待</span>
+              </button>
+            </div>
+            <p id="exportHint" class="export-hint"></p>
+          </div>
         </section>
       </aside>
     </div>
+
+    <div class="desktop-note">
+      关卡编辑器为桌面端工作台，需要至少 1240px 宽的窗口。<br />
+      请拉大浏览器窗口，或使用桌面设备访问。
+    </div>
+
+    <input id="importFileInput" type="file" accept=".json,application/json" hidden />
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
